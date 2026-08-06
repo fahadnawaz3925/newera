@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/api-analyze-reels", "destination": "/api/api-analyze-reels" },
+    { "source": "/api/api-queue", "destination": "/api/api-queue" },
+    { "source": "/api/api-thumbnail", "destination": "/api/api-thumbnail" },
+    { "source": "/api/api-upload-url", "destination": "/api/api-upload-url" },
+    { "source": "/api/cron-trigger", "destination": "/api/cron-trigger" },
+    { "source": "/api/reset-queue", "destination": "/api/reset-queue" },
+    { "source": "/api/process-worker-background", "destination": "/api/process-worker-background" },
+    { "source": "/(.*)", "destination": "/public/$1" }
+  ]
+}
