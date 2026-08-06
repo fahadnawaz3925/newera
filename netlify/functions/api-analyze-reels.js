@@ -28,7 +28,7 @@ exports.handler = async (event, context) => {
         PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_2 || 'EAATskyTkvQUBSPx63pc2l50ADuLfubOt2qve4xQZCTvtGd6jBwsnGyIozjMmeTh8aNSZC82VMfEVkZCDLeHTOZBg6buaBLsXglk8dI0CiFV3ZChF1VWsmWZAELZADUUh5nAopRQFvvhMTSXTnZCcKR4NdzV9FtZCB4qYQUKOWrDZABEcllZB5gzotc9LYrCRFNpSYxx';
       } else {
         IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_1 || '17841443749365419';
-        PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_1 || 'EAAekzJlZBCl0BSMCa03IvS4LvzBU7ioqGXCdm5iaGvFA1jBvQhmVHfA90TfGJZCgnJPtazLm91UthuDqIAIIeK1Xq6yd3LE7aZBs7GRNhMECD9JJ9eSSE05PUqCiHtUwj1T0jzI1AV3yVOB9jGgJFjwlq5EbJXyYwewagt9I60qh0a20YZCgfTRcZCjdoMJlQ9n1W';
+        PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_1 || 'EAAekzJlZBCl0BSFAManvr9VZAebr1gKCPwNbKp6LGz7EZBtfccfjqmyU84jWZB58H5EghAnCLUGv1q26BfPJ8jWMZAXOqCeqDUysR59LHICk44t0Yhqs0E2lfXeojxi3KZAuLb3jAxSqBtOXzoKa09CX48cbbQolDQtimIvmktZBgU0ylFuknJZCIZCYr0k1M1BU0';
       }
 
       if (!IG_BUSINESS_ACCOUNT_ID || !PAGE_ACCESS_TOKEN) {
@@ -167,30 +167,40 @@ exports.handler = async (event, context) => {
         PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_2 || 'EAATskyTkvQUBSPx63pc2l50ADuLfubOt2qve4xQZCTvtGd6jBwsnGyIozjMmeTh8aNSZC82VMfEVkZCDLeHTOZBg6buaBLsXglk8dI0CiFV3ZChF1VWsmWZAELZADUUh5nAopRQFvvhMTSXTnZCcKR4NdzV9FtZCB4qYQUKOWrDZABEcllZB5gzotc9LYrCRFNpSYxx';
         IG_SESSION_ID = process.env.IG_SESSION_ID_2;
       } else {
-        PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_1 || 'EAAekzJlZBCl0BSMCa03IvS4LvzBU7ioqGXCdm5iaGvFA1jBvQhmVHfA90TfGJZCgnJPtazLm91UthuDqIAIIeK1Xq6yd3LE7aZBs7GRNhMECD9JJ9eSSE05PUqCiHtUwj1T0jzI1AV3yVOB9jGgJFjwlq5EbJXyYwewagt9I60qh0a20YZCgfTRcZCjdoMJlQ9n1W';
+        PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_1 || 'EAAekzJlZBCl0BSFAManvr9VZAebr1gKCPwNbKp6LGz7EZBtfccfjqmyU84jWZB58H5EghAnCLUGv1q26BfPJ8jWMZAXOqCeqDUysR59LHICk44t0Yhqs0E2lfXeojxi3KZAuLb3jAxSqBtOXzoKa09CX48cbbQolDQtimIvmktZBgU0ylFuknJZCIZCYr0k1M1BU0';
         IG_SESSION_ID = process.env.IG_SESSION_ID_1;
       }
 
       const results = [];
+      let successCount = 0;
+      let lastError = null;
+
       for (const id of idsToDelete) {
         let deletedSuccessfully = false;
+        let deleteError = null;
 
+        // 1. Try Meta Graph API Delete
         try {
           const deleteUrl = `https://graph.facebook.com/v19.0/${id}?access_token=${PAGE_ACCESS_TOKEN}`;
           const delRes = await fetch(deleteUrl, { method: 'DELETE' });
           const delData = await delRes.json();
           if (delData.success || delData.id) {
             deletedSuccessfully = true;
+          } else {
+            deleteError = delData.error?.error_user_msg || delData.error?.message || 'Meta API delete failed';
           }
-        } catch (err) {}
+        } catch (err) {
+          deleteError = err.message;
+        }
 
+        // 2. Try Instagram Session Cookie Deletion if available
         if (!deletedSuccessfully && IG_SESSION_ID) {
           try {
             const igRes = await fetch(`https://www.instagram.com/api/v1/media/${id}/delete/?media_type=VIDEO`, {
               method: 'POST',
               headers: {
                 'Cookie': `sessionid=${IG_SESSION_ID}`,
-                'User-Agent': 'Instagram 275.0.0.27.98 Android',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                 'X-IG-App-ID': '936619743392459',
                 'X-Requested-With': 'XMLHttpRequest'
               }
@@ -198,23 +208,40 @@ exports.handler = async (event, context) => {
             const igData = await igRes.json();
             if (igData.status === 'ok' || igData.did_delete) {
               deletedSuccessfully = true;
+              deleteError = null;
             }
           } catch (e) {}
         }
 
-        if (supabase) {
-          await supabase.from('reels_queue').update({ status: 'DELETED' }).eq('creation_id', id);
-          await supabase.from('reels_queue').update({ status: 'DELETED' }).eq('id', id);
+        if (deletedSuccessfully) {
+          successCount++;
+          if (supabase) {
+            await supabase.from('reels_queue').update({ status: 'DELETED' }).eq('creation_id', id);
+            await supabase.from('reels_queue').update({ status: 'DELETED' }).eq('id', id);
+          }
+        } else {
+          lastError = deleteError;
         }
 
-        results.push({ id, success: true, apiDeleted: deletedSuccessfully });
+        results.push({ id, success: deletedSuccessfully, error: deleteError });
+      }
+
+      if (successCount === 0 && idsToDelete.length > 0) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: lastError || 'Failed to delete reel(s) from Instagram.',
+            results
+          })
+        };
       }
 
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
-          message: `Successfully processed deletion for ${idsToDelete.length} reel(s)`,
+          message: `Successfully deleted ${successCount} of ${idsToDelete.length} reel(s)`,
           results
         })
       };
