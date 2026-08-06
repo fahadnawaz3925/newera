@@ -10,6 +10,38 @@ const ffmpeg = require('ffmpeg-static');
 const { execSync } = require('child_process');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// Downloads standalone yt-dlp binary for Linux (no Python required) and caches it in /tmp
+let _cachedYtDlpBinaryPath = null;
+async function getYtDlpBinary() {
+  if (process.platform === 'win32') {
+    const winBin = path.resolve('./node_modules/yt-dlp-exec/bin/yt-dlp.exe');
+    if (fs.existsSync(winBin)) return ytDlp.create(winBin);
+    return ytDlp;
+  }
+  const tmpBin = path.join(os.tmpdir(), 'yt-dlp-standalone');
+  if (_cachedYtDlpBinaryPath && fs.existsSync(_cachedYtDlpBinaryPath)) {
+    return ytDlp.create(_cachedYtDlpBinaryPath);
+  }
+  if (fs.existsSync(tmpBin)) {
+    _cachedYtDlpBinaryPath = tmpBin;
+    return ytDlp.create(tmpBin);
+  }
+  console.log('Downloading standalone yt-dlp binary for Linux...');
+  try {
+    const res = await fetch('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux', { redirect: 'follow' });
+    if (!res.ok) throw new Error(`Failed to download yt-dlp binary: ${res.status}`);
+    const buffer = await res.arrayBuffer();
+    fs.writeFileSync(tmpBin, Buffer.from(buffer));
+    fs.chmodSync(tmpBin, 0o755);
+    _cachedYtDlpBinaryPath = tmpBin;
+    console.log('yt-dlp standalone binary downloaded successfully to', tmpBin);
+    return ytDlp.create(tmpBin);
+  } catch (e) {
+    console.warn('Failed to download standalone yt-dlp binary, falling back to bundled:', e.message);
+    return ytDlp;
+  }
+}
+
 async function processSingleItem(supabase, S3, bucketName, item, targetAccount) {
   let IG_BUSINESS_ACCOUNT_ID, PAGE_ACCESS_TOKEN, IG_SESSION_ID;
   
@@ -77,21 +109,8 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
       console.log(`Downloading external URL ${item.url} for ${targetAccount} via yt-dlp to temp directory`);
       
       try {
-        let ytDlpCustom = ytDlp;
-        if (!process.env.NETLIFY_DEV && !process.env.IS_LOCAL) {
-          const originalBinaryPath = path.resolve(process.env.LAMBDA_TASK_ROOT || process.cwd(), 'netlify', 'bin', 'yt-dlp');
-          const tmpBinaryPath = path.join(os.tmpdir(), 'yt-dlp');
-          if (fs.existsSync(originalBinaryPath)) {
-            fs.copyFileSync(originalBinaryPath, tmpBinaryPath);
-            fs.chmodSync(tmpBinaryPath, 0o777);
-            ytDlpCustom = ytDlp.create(tmpBinaryPath);
-          }
-        } else {
-          const localBinaryPath = path.resolve(process.cwd(), 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp.exe');
-          if (fs.existsSync(localBinaryPath)) {
-            ytDlpCustom = ytDlp.create(localBinaryPath);
-          }
-        }
+        // Always get the best available standalone binary (no Python dependency)
+        const ytDlpCustom = await getYtDlpBinary();
 
         const ytDlpOptions = { output: tempFileTemplate, format: 'best', writeInfoJson: true };
         if (cookiePath && item.url.includes('instagram.com')) ytDlpOptions.cookies = cookiePath;
