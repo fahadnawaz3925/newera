@@ -14,3 +14,5 @@ netlify/bin/
 *.log
 .DS_Store
 test_mp4*
+
+.vercel

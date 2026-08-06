@@ -540,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       scannedLowPosts = data.posts || [];
-      renderLowPerformanceList(scannedLowPosts);
+      renderLowPerformanceList(scannedLowPosts, data);
     } catch (err) {
       console.error('Analyzer error:', err);
       analyzerStatusMsg.textContent = `⚠️ Error scanning reels: ${err.message}`;
@@ -552,21 +552,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function renderLowPerformanceList(posts) {
+  function renderLowPerformanceList(posts, data = {}) {
     lowCountSpan.textContent = posts.length;
     if (posts.length === 0) {
-      analyzerStatusMsg.textContent = `🎉 Great news! No underperforming reels found matching your filter.`;
+      analyzerStatusMsg.textContent = `🎉 Great news! Scanned ${data.totalScanned || 0} published reels — no underperforming reels found matching your criteria.`;
       analyzerList.innerHTML = '';
       deleteAllLowBtn.classList.add('hidden');
       return;
     }
 
-    analyzerStatusMsg.textContent = `Found ${posts.length} underperforming reel(s) matching criteria:`;
+    const note = data.hasInsightsPermission ? '' : ' (Filtered by low engagement/likes)';
+    analyzerStatusMsg.textContent = `Scanned ${data.totalScanned || posts.length} reels. Found ${posts.length} low-performing reel(s) older than ${data.minAgeHoursThreshold || 24}h${note}:`;
     deleteAllLowBtn.classList.remove('hidden');
 
     let html = '';
     posts.forEach(post => {
-      const thumbnailSrc = post.thumbnailUrl || '/.netlify/functions/api-thumbnail?url=' + encodeURIComponent(post.permalink);
+      const thumbnailSrc = post.thumbnailUrl || '/api/api-thumbnail?url=' + encodeURIComponent(post.permalink);
+      const viewsLabel = post.views !== null ? `👁️ ${post.views} views` : `❤️ ${post.likes} likes`;
       html += `
         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 12px; overflow: hidden; min-width: 200px;">
@@ -582,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
             <span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 600; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">
-              👁️ ${post.views} views
+              ${viewsLabel}
             </span>
             <button onclick="window.deleteSingleLowReel('${post.id}')" style="background: rgba(220, 38, 38, 0.2); color: #fca5a5; border: 1px solid rgba(220, 38, 38, 0.4); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: background 0.2s;">
               🗑️ Delete
