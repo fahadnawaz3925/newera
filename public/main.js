@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function scanLowPerformanceReels() {
     const selectedAccount = accountSelect ? accountSelect.value : 'account1';
     const minAgeHours = analyzerAgeSelect ? analyzerAgeSelect.value : '24';
-    const maxViews = analyzerViewsSelect ? analyzerViewsSelect.value : '20';
+    const maxViews = analyzerViewsSelect ? analyzerViewsSelect.value : '10';
 
     analyzeReelsBtn.disabled = true;
     analyzeLoader.classList.remove('hidden');
