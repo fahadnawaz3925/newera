@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // but this guarantees the post goes out exactly when the timer hits zero without relying on Netlify's cron.
   setInterval(() => {
     console.log('Sending heartbeat to background worker...');
-    fetch('/.netlify/functions/process-worker-background', { method: 'POST' }).catch(console.error);
+    fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
   }, 2 * 60 * 1000); // Every 2 minutes
 
   form.addEventListener('submit', async (e) => {
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('file-upload').value = '';
       
       // Kick off the background worker instantly so the first video starts NOW
-      fetch('/.netlify/functions/process-worker-background', { method: 'POST' }).catch(e => console.error(e));
+      fetch('/api/process-worker-background', { method: 'POST' }).catch(e => console.error(e));
 
       // Fetch updated queue immediately
       await fetchQueue();
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const accountSelect = document.getElementById('account-select');
       const accountId = accountSelect ? accountSelect.value : 'account1';
 
-      const res = await fetch('/.netlify/functions/reset-queue', { 
+      const res = await fetch('/api/reset-queue', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId })
@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // to bypass any Netlify free-tier cron sleeping issues.
         if (!window.hasTriggeredWorkerForThisDrop) {
           window.hasTriggeredWorkerForThisDrop = true;
-          fetch('/.netlify/functions/process-worker-background', { method: 'POST' }).catch(console.error);
+          fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
         }
       } else {
         window.hasTriggeredWorkerForThisDrop = false;
@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tracker-header">
               <div class="tracker-url-container">
                 <span class="drag-handle" title="Drag to reorder">☰</span>
-                <img src="/.netlify/functions/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.style.display='none'" />
+                <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.style.display='none'" />
                 <span class="tracker-url" title="${item.url}">${item.url}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -460,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tracker-header">
               <div class="tracker-url-container">
                 <input type="checkbox" class="activity-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #ef4444; margin-right: 12px; flex-shrink: 0;" />
-                <img src="/.netlify/functions/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.style.display='none'" />
+                <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.style.display='none'" />
                 <span class="tracker-url" title="${item.url}">${item.url}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
