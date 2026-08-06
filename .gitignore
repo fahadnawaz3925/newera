@@ -1,0 +1,16 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Local Netlify folder & binaries
+.netlify/
+netlify/bin/
+
+# System and logs
+*.log
+.DS_Store
+test_mp4*
