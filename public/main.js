@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch queue');
       
       renderQueue(data.queue);
-      startCountdownTimer(data.lastPublished);
+      startCountdownTimer(data.lastPublished, data.queue);
     } catch (err) {
       console.error('Error fetching queue:', err);
     }
@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let countdownInterval = null;
 
-  function startCountdownTimer(lastPublished) {
+  function startCountdownTimer(lastPublished, queueItems = []) {
     const timerSpan = document.getElementById('next-post-timer');
     if (!timerSpan) return;
     
@@ -344,9 +344,26 @@ document.addEventListener('DOMContentLoaded', () => {
     
     timerSpan.style.display = 'inline-block';
     
-    // If no last published date exists, we show a ready message
-    if (!lastPublished) {
-      timerSpan.textContent = 'Next post: Ready to process...';
+    const activeItems = queueItems.filter(item => item.status === 'PENDING' || item.status === 'PROCESSING');
+    if (activeItems.length === 0) {
+      timerSpan.textContent = 'Next post: Queue empty';
+      timerSpan.style.background = 'rgba(107, 114, 128, 0.1)';
+      timerSpan.style.color = '#9ca3af';
+      timerSpan.style.borderColor = 'rgba(107, 114, 128, 0.2)';
+      return;
+    }
+    
+    const isCurrentlyProcessing = queueItems.some(item => item.status === 'PROCESSING');
+    if (isCurrentlyProcessing) {
+      timerSpan.textContent = 'Next post: Currently processing... ⚡';
+      timerSpan.style.background = 'rgba(59, 130, 246, 0.1)';
+      timerSpan.style.color = '#60a5fa';
+      timerSpan.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+      return;
+    }
+
+    if (!lastPublished || lastPublished === 0) {
+      timerSpan.textContent = 'Next post: Due now (Processing...)';
       timerSpan.style.background = 'rgba(16, 185, 129, 0.1)';
       timerSpan.style.color = '#34d399';
       timerSpan.style.borderColor = 'rgba(16, 185, 129, 0.2)';
@@ -359,13 +376,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const diff = targetTime - now;
       
       if (diff <= 0) {
-        timerSpan.textContent = 'Next post: Pending organic drop...';
+        timerSpan.textContent = 'Next post: Due now (Posting...) 🚀';
         timerSpan.style.background = 'rgba(245, 158, 11, 0.1)';
         timerSpan.style.color = '#fbbf24';
         timerSpan.style.borderColor = 'rgba(245, 158, 11, 0.2)';
         
-        // As soon as the timer hits zero, aggressively try to ping the worker 
-        // to bypass any Netlify free-tier cron sleeping issues.
+        // Trigger background worker if overdue
         if (!window.hasTriggeredWorkerForThisDrop) {
           window.hasTriggeredWorkerForThisDrop = true;
           fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
@@ -374,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.hasTriggeredWorkerForThisDrop = false;
         const mins = Math.floor(diff / 60000);
         const secs = Math.floor((diff % 60000) / 1000);
-        timerSpan.textContent = `Next post: ~${mins}m ${secs}s`;
+        timerSpan.textContent = `Next post in ~${mins}m ${secs}s`;
         timerSpan.style.background = 'rgba(16, 185, 129, 0.1)';
         timerSpan.style.color = '#34d399';
         timerSpan.style.borderColor = 'rgba(16, 185, 129, 0.2)';

@@ -439,14 +439,14 @@ const handler = async function(event, context) {
   });
 
   try {
-    // 0. Auto-recover items stuck in PROCESSING state (>15 min old)
+    // 0. Auto-recover items stuck in PROCESSING state (>5 min old)
     try {
-      const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       await supabase
         .from('reels_queue')
         .update({ status: 'PENDING', error_log: 'Auto-reset from stalled PROCESSING state' })
         .eq('status', 'PROCESSING')
-        .lt('created_at', fifteenMinsAgo);
+        .lt('created_at', fiveMinsAgo);
     } catch (stuckErr) {
       console.error('Error auto-resetting stuck items:', stuckErr);
     }
@@ -482,7 +482,7 @@ const handler = async function(event, context) {
           const lockTime = parseInt(lockTimeStr, 10);
           const lockAgeMins = (Date.now() - (isNaN(lockTime) ? 0 : lockTime)) / (1000 * 60);
 
-          if (lockAgeMins < 15) {
+          if (lockAgeMins < 3) {
             console.log(`[CONCURRENCY GUARD] ${targetAccount} is currently locked by another active worker (${lockAgeMins.toFixed(1)}m ago). Skipping to enforce single video execution.`);
             continue;
           } else {
