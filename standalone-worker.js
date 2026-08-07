@@ -265,10 +265,13 @@ async function startDaemon() {
 
   const supportedAccounts = ['account1', 'account2'];
 
+  // Track last log time per account to avoid spamming "waiting" logs
+  const lastWaitLog = {};
+
   while (true) {
     for (const targetAccount of supportedAccounts) {
       try {
-        // 1. Check active PROCESSING items
+        // 1. Check active PROCESSING items — reset stale ones (>10 min)
         let procQuery = supabase.from('reels_queue').select('*').eq('status', 'PROCESSING');
         if (targetAccount === 'account1') {
           procQuery = procQuery.or('account_id.eq.account1,account_id.is.null');
@@ -285,22 +288,21 @@ async function startDaemon() {
             await supabase.from('reels_queue').update({ status: 'PENDING', error_log: 'Reset orphaned PROCESSING state (>10m)' }).in('id', staleItems.map(i => i.id));
             continue;
           } else {
-            // Active item being processed
+            // Active item currently being processed, skip
             continue;
           }
         }
 
-        // 2. Fetch last_published timestamp
+        // 2. Fetch last_published timestamp from R2
         let lastPub = 0;
         try {
           const command = new GetObjectCommand({ Bucket: bucketName, Key: `last_published_${targetAccount}.txt` });
           const response = await S3.send(command);
           const text = await response.Body.transformToString();
           lastPub = parseInt(text, 10);
-        } catch (e) {}
-
-        const now = Date.now();
-        const cooldownMinutes = (now - (isNaN(lastPub) ? 0 : lastPub)) / (1000 * 60);
+        } catch (e) {
+          // No timestamp file = never published = first video should go immediately
+        }
 
         // 3. Fetch oldest PENDING item
         let query = supabase.from('reels_queue').select('*').eq('status', 'PENDING');
@@ -315,17 +317,37 @@ async function startDaemon() {
         if (!queueItems || queueItems.length === 0) continue;
 
         const item = queueItems[0];
-        const isDirectUpload = item.url && item.url.startsWith('supabase://');
+
+        // 4. Determine cooldown: first video = instant, rest = 20-25 min gap
+        const now = Date.now();
+        const msSinceLastPost = now - (isNaN(lastPub) ? 0 : lastPub);
+        const minsSinceLastPost = msSinceLastPost / (1000 * 60);
+
+        // Pick a random cooldown between 20-25 min for natural spacing
+        const COOLDOWN_MIN = 20;
+        const COOLDOWN_MAX = 25;
+        const cooldownTarget = COOLDOWN_MIN + Math.random() * (COOLDOWN_MAX - COOLDOWN_MIN);
 
         let isReady = false;
-        if (isDirectUpload || lastPub === 0) {
+
+        if (lastPub === 0) {
+          // Never published before — post the first video immediately
+          console.log(`[${targetAccount}] 🆕 No previous post found — processing first video immediately!`);
           isReady = true;
-        } else if (cooldownMinutes >= 20) {
-          if (cooldownMinutes < 25 && Math.random() > 0.5) {
-            isReady = false;
-          } else {
-            isReady = true;
+        } else if (minsSinceLastPost >= cooldownTarget) {
+          // Enough time has passed since last post
+          console.log(`[${targetAccount}] ⏰ ${minsSinceLastPost.toFixed(1)} min since last post (cooldown: ${cooldownTarget.toFixed(1)} min) — ready to post!`);
+          isReady = true;
+        } else {
+          // Still in cooldown — log every 2 minutes to avoid spam
+          const waitMinsLeft = (cooldownTarget - minsSinceLastPost).toFixed(1);
+          const logKey = `${targetAccount}`;
+          const lastLog = lastWaitLog[logKey] || 0;
+          if (now - lastLog > 2 * 60 * 1000) {
+            console.log(`[${targetAccount}] ⏳ Waiting ~${waitMinsLeft} min before next post (${minsSinceLastPost.toFixed(1)}/${cooldownTarget.toFixed(1)} min elapsed)`);
+            lastWaitLog[logKey] = now;
           }
+          isReady = false;
         }
 
         if (isReady) {
@@ -336,7 +358,7 @@ async function startDaemon() {
       }
     }
 
-    // Sleep 15 seconds before next evaluation tick
+    // Poll every 15 seconds
     await sleep(15000);
   }
 }
