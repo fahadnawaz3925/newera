@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const execa = require('execa');
 const path = require('path');
@@ -172,7 +173,10 @@ async function processSingleItem(item, targetAccount) {
     });
     await S3.send(putObjectCmd);
 
-    const publicVideoUrl = `https://pub-209f9f91a54247599cbbfb3829c99131.r2.dev/${uploadName}`;
+    // Generate a presigned URL (valid 1 hour) so Meta can download the video
+    const getCmd = new GetObjectCommand({ Bucket: bucketName, Key: uploadName });
+    const publicVideoUrl = await getSignedUrl(S3, getCmd, { expiresIn: 3600 });
+    console.log(`Presigned URL generated for Meta (expires in 1h)`);
 
     // Meta Reel Upload
     console.log(`Creating Meta Reel container for ${targetAccount}...`);
