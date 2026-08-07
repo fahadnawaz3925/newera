@@ -35,34 +35,63 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 // AI Caption Generator
 async function generateCaption(videoUrl, rawPath, targetAccount) {
   const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) return "SubhanAllah ✨ Powerful Islamic Reminder #Islamic #Shorts #Reels #Iman #Quran";
+  
+  if (targetAccount === 'account2') {
+    if (!geminiKey) return "Oddly satisfying leather shoe shining ASMR ✨🎧 Relax and enjoy the restoration process #ASMR #ShoeShine #LeatherRestoration #OddlySatisfying #Satisfying #ASMRSounds #LeatherShining";
+    
+    const prompt = `Write an engaging, viral Instagram Reel caption for a leather shoe polishing ASMR video. 
+Include:
+1. A satisfying, hooky title with relevant emojis (e.g. 👞✨, 🎧💆‍♂️).
+2. A brief 1-2 sentence description highlighting the satisfying process, the shine, or the relaxing sounds of leather shoe polishing/restoration.
+3. 5-8 relevant viral hashtags (e.g., #ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds #LeatherCare).
+Keep text clean, respectful, and appealing to ASMR/satisfying video fans. Do NOT include markdown code blocks or quotes around the caption.`;
 
-  const prompt = `Write an engaging, viral Instagram Reel caption for an Islamic video. 
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest'];
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting caption generation with model: ${modelName} for ${targetAccount}`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().trim();
+        if (text) {
+          console.log(`Caption successfully generated using model: ${modelName}`);
+          return text;
+        }
+      } catch (err) {
+        console.warn(`Model ${modelName} failed:`, err.message);
+      }
+    }
+    return "Oddly satisfying leather shoe shining ASMR ✨🎧 Relax and enjoy the restoration process #ASMR #ShoeShine #LeatherRestoration #OddlySatisfying #Satisfying #ASMRSounds #LeatherShining";
+  } else {
+    if (!geminiKey) return "SubhanAllah ✨ Powerful Islamic Reminder #Islamic #Shorts #Reels #Iman #Quran";
+
+    const prompt = `Write an engaging, viral Instagram Reel caption for an Islamic video. 
 Include:
 1. An inspiring title/hook with emoji.
 2. A short 2-3 sentence reflection/lesson about Iman, Taqwa, or remembrance of Allah.
 3. 5-8 relevant viral hashtags (e.g., #IslamicReminders #Quran #Sunnah #Deen #Hadith #DeenOverDunya).
 Keep text clean, respectful, and beautiful. Do NOT include markdown code blocks or quotes around the caption.`;
 
-  const genAI = new GoogleGenerativeAI(geminiKey);
-  const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest'];
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest'];
 
-  for (const modelName of modelsToTry) {
-    try {
-      console.log(`Attempting caption generation with model: ${modelName} for ${targetAccount}`);
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().trim();
-      if (text) {
-        console.log(`Caption successfully generated using model: ${modelName}`);
-        return text;
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting caption generation with model: ${modelName} for ${targetAccount}`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().trim();
+        if (text) {
+          console.log(`Caption successfully generated using model: ${modelName}`);
+          return text;
+        }
+      } catch (err) {
+        console.warn(`Model ${modelName} failed:`, err.message);
       }
-    } catch (err) {
-      console.warn(`Model ${modelName} failed:`, err.message);
     }
   }
-
-  return "SubhanAllah ✨ Powerful Islamic Reminder #Islamic #Shorts #Reels #Iman #Quran";
 }
 
 // Single Video Processor
