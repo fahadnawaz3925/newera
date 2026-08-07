@@ -380,9 +380,11 @@ Original description for context: "${originalDescription || ''}"`;
 
     console.log(`Reel published successfully for ${targetAccount}! 🎉`);
 
-    // 7. Cleanup & Mark Success
+    // 7. Mark Success in Supabase IMMEDIATELY before external cleanup
+    await supabase.from('reels_queue').update({ status: 'PUBLISHED', error_log: null }).eq('id', item.id);
+
+    // 8. Cleanup R2 temporary asset & update cooldown timestamp
     await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: uploadName })).catch(e => console.error(e));
-    await supabase.from('reels_queue').update({ status: 'PUBLISHED' }).eq('id', item.id);
     
     const finalLockCmd = new PutObjectCommand({ 
       Bucket: bucketName, 
@@ -467,6 +469,7 @@ const handler = async function(event, context) {
             console.log(`Resetting ${staleItems.length} orphaned processing item(s) for ${targetAccount} back to PENDING...`);
             const staleIds = staleItems.map(i => i.id);
             await supabase.from('reels_queue').update({ status: 'PENDING', error_log: 'Reset orphaned PROCESSING state (>10m)' }).in('id', staleIds);
+            continue; // Skip this tick after clearing stale items to prevent burst processing
           } else {
             console.log(`[CONCURRENCY GUARD] ${targetAccount} already has ${activeProcs.length} video(s) in active PROCESSING state. Skipping to enforce 1-at-a-time processing.`);
             continue;
