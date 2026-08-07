@@ -458,10 +458,19 @@ const handler = async function(event, context) {
           procQuery = procQuery.eq('account_id', targetAccount);
         }
 
-        const { count: activeProcCount } = await procQuery;
-        if (activeProcCount && activeProcCount > 0) {
-          console.log(`[CONCURRENCY GUARD] ${targetAccount} already has ${activeProcCount} video(s) in PROCESSING state. Skipping to enforce 1-at-a-time processing.`);
-          continue;
+        const { data: activeProcs } = await procQuery;
+        if (activeProcs && activeProcs.length > 0) {
+          const tenMinsAgo = Date.now() - 10 * 60 * 1000;
+          const staleItems = activeProcs.filter(item => new Date(item.created_at).getTime() < tenMinsAgo);
+          
+          if (staleItems.length > 0) {
+            console.log(`Resetting ${staleItems.length} orphaned processing item(s) for ${targetAccount} back to PENDING...`);
+            const staleIds = staleItems.map(i => i.id);
+            await supabase.from('reels_queue').update({ status: 'PENDING', error_log: 'Reset orphaned PROCESSING state (>10m)' }).in('id', staleIds);
+          } else {
+            console.log(`[CONCURRENCY GUARD] ${targetAccount} already has ${activeProcs.length} video(s) in active PROCESSING state. Skipping to enforce 1-at-a-time processing.`);
+            continue;
+          }
         }
 
         // 3. Fetch cooldown for this specific account
