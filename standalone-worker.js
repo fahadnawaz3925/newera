@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { GoogleGenerativeAI } = require('@google-generative-ai/generative-ai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const execa = require('execa');
 const path = require('path');
 const fs = require('fs');
