@@ -397,9 +397,6 @@ Original description for context: "${originalDescription || ''}"`;
     await supabase.from('reels_queue').update({ status: 'FAILED', error_log: processError.message }).eq('id', item.id);
   } finally {
     try {
-      // Release in-flight lock for this account
-      await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: `processing_lock_${targetAccount}.txt` })).catch(e => console.error(e));
-
       if (fileId) {
         const tempDir = os.tmpdir();
         const leftoverFiles = fs.readdirSync(tempDir).filter(f => f.startsWith(fileId));
@@ -444,18 +441,6 @@ const handler = async function(event, context) {
   });
 
   try {
-    // 0. Auto-recover items stuck in PROCESSING state (>5 min old)
-    try {
-      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      await supabase
-        .from('reels_queue')
-        .update({ status: 'PENDING', error_log: 'Auto-reset from stalled PROCESSING state' })
-        .eq('status', 'PROCESSING')
-        .lt('created_at', fiveMinsAgo);
-    } catch (stuckErr) {
-      console.error('Error auto-resetting stuck items:', stuckErr);
-    }
-
     const supportedAccounts = ['account1', 'account2'];
     
     // Evaluate each account independently to ensure zero starvation across accounts
@@ -477,24 +462,6 @@ const handler = async function(event, context) {
         if (activeProcCount && activeProcCount > 0) {
           console.log(`[CONCURRENCY GUARD] ${targetAccount} already has ${activeProcCount} video(s) in PROCESSING state. Skipping to enforce 1-at-a-time processing.`);
           continue;
-        }
-
-        // 2. R2 IN-FLIGHT LOCK GUARD: Check if lock file exists in R2
-        try {
-          const lockCmd = new GetObjectCommand({ Bucket: bucketName, Key: `processing_lock_${targetAccount}.txt` });
-          const lockRes = await S3.send(lockCmd);
-          const lockTimeStr = await lockRes.Body.transformToString();
-          const lockTime = parseInt(lockTimeStr, 10);
-          const lockAgeMins = (Date.now() - (isNaN(lockTime) ? 0 : lockTime)) / (1000 * 60);
-
-          if (lockAgeMins < 3) {
-            console.log(`[CONCURRENCY GUARD] ${targetAccount} is currently locked by another active worker (${lockAgeMins.toFixed(1)}m ago). Skipping to enforce single video execution.`);
-            continue;
-          } else {
-            console.log(`[CONCURRENCY GUARD] Stale processing lock found for ${targetAccount} (${lockAgeMins.toFixed(1)}m old). Overriding stale lock.`);
-          }
-        } catch (lockFetchErr) {
-          // Lock file does not exist -> safe to proceed
         }
 
         // 3. Fetch cooldown for this specific account
@@ -557,14 +524,6 @@ const handler = async function(event, context) {
           console.log(`${targetAccount} is on cooldown (${cooldownMinutes.toFixed(1)}m elapsed / 20m required). Skipping for now.`);
           continue;
         }
-
-        // ACQUIRE IN-FLIGHT LOCK BEFORE PROCESSING
-        await S3.send(new PutObjectCommand({
-          Bucket: bucketName,
-          Key: `processing_lock_${targetAccount}.txt`,
-          Body: Date.now().toString(),
-          ContentType: 'text/plain'
-        })).catch(e => console.error('Error writing processing lock:', e));
 
         console.log(`Ready to process item ${item.id} for ${targetAccount} (${cooldownMinutes.toFixed(1)}m since last post).`);
         await processSingleItem(supabase, S3, bucketName, item, targetAccount);
