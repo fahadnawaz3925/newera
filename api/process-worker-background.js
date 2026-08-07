@@ -397,6 +397,9 @@ Original description for context: "${originalDescription || ''}"`;
     await supabase.from('reels_queue').update({ status: 'FAILED', error_log: processError.message }).eq('id', item.id);
   } finally {
     try {
+      // Release in-flight lock for this account
+      await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: `processing_lock_${targetAccount}.txt` })).catch(e => console.error(e));
+
       if (fileId) {
         const tempDir = os.tmpdir();
         const leftoverFiles = fs.readdirSync(tempDir).filter(f => f.startsWith(fileId));
@@ -458,7 +461,43 @@ const handler = async function(event, context) {
     // Evaluate each account independently to ensure zero starvation across accounts
     for (const targetAccount of supportedAccounts) {
       try {
-        // 1. Fetch cooldown for this specific account
+        // 1. STRICT CONCURRENCY GUARD: Check if an item is ALREADY being processed for this account
+        let procQuery = supabase
+          .from('reels_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'PROCESSING');
+        
+        if (targetAccount === 'account1') {
+          procQuery = procQuery.or('account_id.eq.account1,account_id.is.null');
+        } else {
+          procQuery = procQuery.eq('account_id', targetAccount);
+        }
+
+        const { count: activeProcCount } = await procQuery;
+        if (activeProcCount && activeProcCount > 0) {
+          console.log(`[CONCURRENCY GUARD] ${targetAccount} already has ${activeProcCount} video(s) in PROCESSING state. Skipping to enforce 1-at-a-time processing.`);
+          continue;
+        }
+
+        // 2. R2 IN-FLIGHT LOCK GUARD: Check if lock file exists in R2
+        try {
+          const lockCmd = new GetObjectCommand({ Bucket: bucketName, Key: `processing_lock_${targetAccount}.txt` });
+          const lockRes = await S3.send(lockCmd);
+          const lockTimeStr = await lockRes.Body.transformToString();
+          const lockTime = parseInt(lockTimeStr, 10);
+          const lockAgeMins = (Date.now() - (isNaN(lockTime) ? 0 : lockTime)) / (1000 * 60);
+
+          if (lockAgeMins < 15) {
+            console.log(`[CONCURRENCY GUARD] ${targetAccount} is currently locked by another active worker (${lockAgeMins.toFixed(1)}m ago). Skipping to enforce single video execution.`);
+            continue;
+          } else {
+            console.log(`[CONCURRENCY GUARD] Stale processing lock found for ${targetAccount} (${lockAgeMins.toFixed(1)}m old). Overriding stale lock.`);
+          }
+        } catch (lockFetchErr) {
+          // Lock file does not exist -> safe to proceed
+        }
+
+        // 3. Fetch cooldown for this specific account
         let lastPub = 0;
         try {
           const command = new GetObjectCommand({ Bucket: bucketName, Key: `last_published_${targetAccount}.txt` });
@@ -472,7 +511,7 @@ const handler = async function(event, context) {
         const now = Date.now();
         const cooldownMinutes = (now - (isNaN(lastPub) ? 0 : lastPub)) / (1000 * 60);
 
-        // 2. Fetch oldest pending item specifically for this account
+        // 4. Fetch oldest pending item specifically for this account
         let query = supabase
           .from('reels_queue')
           .select('*')
@@ -501,7 +540,7 @@ const handler = async function(event, context) {
         const item = queueItems[0];
         const isDirectUpload = item.url && item.url.startsWith('supabase://');
 
-        // 3. Check readiness (organic 20-25m delay, direct upload bypass, or local testing)
+        // 5. Check readiness (organic 20-25m delay, direct upload bypass, or local testing)
         let isReady = false;
         if (process.env.IS_LOCAL || isDirectUpload) {
           isReady = true;
@@ -518,6 +557,14 @@ const handler = async function(event, context) {
           console.log(`${targetAccount} is on cooldown (${cooldownMinutes.toFixed(1)}m elapsed / 20m required). Skipping for now.`);
           continue;
         }
+
+        // ACQUIRE IN-FLIGHT LOCK BEFORE PROCESSING
+        await S3.send(new PutObjectCommand({
+          Bucket: bucketName,
+          Key: `processing_lock_${targetAccount}.txt`,
+          Body: Date.now().toString(),
+          ContentType: 'text/plain'
+        })).catch(e => console.error('Error writing processing lock:', e));
 
         console.log(`Ready to process item ${item.id} for ${targetAccount} (${cooldownMinutes.toFixed(1)}m since last post).`);
         await processSingleItem(supabase, S3, bucketName, item, targetAccount);
