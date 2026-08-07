@@ -412,22 +412,11 @@ Original description for context: "${originalDescription || ''}"`;
 }
 
 const handler = async function (event, context) {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_KEY = process.env.SUPABASE_KEY;
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.error('Missing Supabase environment variables');
-    return { statusCode: 500 };
-  }
-
-  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  const accountIdR2 = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucketName = process.env.R2_BUCKET_NAME || 'reels';
-
-  if (!accountIdR2 || !accessKeyId || !secretAccessKey) {
-    console.error('Missing R2 environment variables');
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: 'Background processing offloaded 100% to Oracle Cloud VM 24/7 daemon.' })
+  };
+};
     return { statusCode: 500 };
   }
 
