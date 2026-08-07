@@ -62,15 +62,6 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
     return;
   }
 
-  // Mark as PROCESSING and use Optimistic Locking in R2
-  const optLockCmd = new PutObjectCommand({ 
-    Bucket: bucketName, 
-    Key: `last_published_${targetAccount}.txt`, 
-    Body: Date.now().toString(), 
-    ContentType: 'text/plain' 
-  });
-  await S3.send(optLockCmd).catch(e => console.error('Optimistic lock update error:', e));
-
   const { error: updateErr } = await supabase.from('reels_queue').update({ status: 'PROCESSING' }).eq('id', item.id);
   if (updateErr) console.error('Failed to update status to PROCESSING:', updateErr.message);
 
@@ -230,12 +221,10 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
       if (process.env.GEMINI_API_KEY) {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const modelsToTry = [
-          'gemini-flash-lite-latest',
-          'gemini-3.5-flash-lite',
-          'gemini-3.1-flash-lite',
-          'gemini-3.5-flash',
           'gemini-flash-latest',
-          'gemini-2.0-flash'
+          'gemini-flash-lite-latest',
+          'gemini-2.0-flash',
+          'gemini-2.0-flash-lite'
         ];
 
         let prompt = '';
@@ -447,6 +436,18 @@ const handler = async function(event, context) {
   });
 
   try {
+    // 0. Auto-recover items stuck in PROCESSING state (>15 min old)
+    try {
+      const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      await supabase
+        .from('reels_queue')
+        .update({ status: 'PENDING', error_log: 'Auto-reset from stalled PROCESSING state' })
+        .eq('status', 'PROCESSING')
+        .lt('created_at', fifteenMinsAgo);
+    } catch (stuckErr) {
+      console.error('Error auto-resetting stuck items:', stuckErr);
+    }
+
     const supportedAccounts = ['account1', 'account2'];
     
     // Evaluate each account independently to ensure zero starvation across accounts

@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 
-exports.handler = async (event, context) => {
+const handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -262,8 +262,7 @@ exports.handler = async (event, context) => {
   }
 };
 
-// Vercel Serverless Function Adapter
-module.exports = async (req, res) => {
+const vercelAdapter = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -279,7 +278,7 @@ module.exports = async (req, res) => {
   };
 
   try {
-    const result = await exports.handler(event, {});
+    const result = await handler(event, {});
     if (result.headers) {
       for (const [k, v] of Object.entries(result.headers)) {
         res.setHeader(k, v);
@@ -296,3 +295,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
+
+vercelAdapter.handler = handler;
+module.exports = vercelAdapter;
+exports.handler = handler;
