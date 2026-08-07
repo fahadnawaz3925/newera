@@ -31,11 +31,20 @@
   <div class="background-animation"></div>
   
   <main class="container">
-    <header class="header" style="position: relative;">
-      <h1>Reel Auto-Poster</h1>
-      <p>True Background Automation Queue</p>
-      <div id="next-post-timer-container" style="position: absolute; right: 20px; top: 20px;">
-        <span id="next-post-timer" style="font-size: 0.95rem; padding: 6px 12px; border-radius: 6px; border: 1px solid transparent; font-weight: 500; display: none;"></span>
+    <header class="header" style="position: relative; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+      <div>
+        <h1>Reel Auto-Poster</h1>
+        <p>True Background Automation Queue</p>
+      </div>
+      <div id="next-post-timer-container" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(51, 65, 85, 0.8); padding: 10px 16px; border-radius: 12px; min-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">⏳ Active Time Loop</span>
+          <span id="loop-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+        </div>
+        <div id="next-post-timer" style="font-size: 1.05rem; font-weight: 700; color: #34d399; font-family: monospace;">Next post: --:--</div>
+        <div style="width: 100%; background: rgba(0,0,0,0.4); height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden;">
+          <div id="loop-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.5s linear;"></div>
+        </div>
       </div>
     </header>
 
@@ -129,8 +138,28 @@
       <h2>Database Queue Dashboard</h2>
       <p class="tracker-subtitle">The background server processes 1 video every 25-30 minutes (randomized) automatically.</p>
       <div class="dashboard-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h2 style="font-size: 1.2rem; color: #f8fafc; margin: 0;">Pending Queue <span style="font-size: 0.8rem; color: #64748b; font-weight: normal; margin-left: 10px;">(Drag to Reorder)</span></h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <h2 style="font-size: 1.2rem; color: #f8fafc; margin: 0;">Pending Queue <span style="font-size: 0.8rem; color: #64748b; font-weight: normal; margin-left: 6px;">(Drag to Reorder)</span></h2>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #94a3b8; cursor: pointer; margin: 0; user-select: none;">
+            <input type="checkbox" id="select-all-pending" style="cursor: pointer; width: 16px; height: 16px; accent-color: #ef4444; margin: 0;">
+            <span>Select All</span>
+          </label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="delete-selected-pending-btn" class="btn-primary hidden" style="background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; padding: 6px 12px; font-size: 0.8rem;">
+            <span class="btn-text">🗑️ Delete Selected (<span id="pending-selected-count">0</span>)</span>
+            <div class="loader hidden" id="pending-selected-loader"></div>
+          </button>
+          <button id="clear-pending-btn" class="btn-primary" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 6px 12px; font-size: 0.8rem;">
+            <span class="btn-text">🗑️ Clear Pending Queue</span>
+            <div class="loader hidden" id="clear-pending-loader"></div>
+          </button>
+          <button id="clear-db-all-btn" class="btn-primary" style="background: rgba(220, 38, 38, 0.3); border: 1px solid rgba(220, 38, 38, 0.6); color: #f87171; padding: 6px 12px; font-size: 0.8rem;">
+            <span class="btn-text">⚠️ Purge Entire DB Queue</span>
+            <div class="loader hidden" id="clear-db-all-loader"></div>
+          </button>
+        </div>
       </div>
       <div id="pending-list" class="tracker-list">
         <!-- Pending items inserted here -->

@@ -111,13 +111,26 @@ const handler = async (event, context) => {
       };
     }
     else if (event.httpMethod === 'DELETE') {
-      const { id, ids, clearAll, accountId } = JSON.parse(event.body);
+      const { id, ids, clearAll, scope, accountId } = JSON.parse(event.body);
+
+      const targetAccount = accountId || 'account1';
 
       if (clearAll) {
-        const targetAccount = accountId || 'account1';
-        const { error } = await supabase.from('reels_queue').delete()
-          .eq('account_id', targetAccount)
-          .in('status', ['PUBLISHED', 'FAILED', 'published', 'failed']);
+        let statuses = ['PUBLISHED', 'FAILED', 'published', 'failed'];
+        if (scope === 'pending') {
+          statuses = ['PENDING', 'pending'];
+        } else if (scope === 'all') {
+          statuses = ['PENDING', 'pending', 'PUBLISHED', 'FAILED', 'published', 'failed', 'PROCESSING', 'processing'];
+        }
+        
+        let query = supabase.from('reels_queue').delete();
+        if (targetAccount === 'account1') {
+          query = query.or(`account_id.eq.account1,account_id.is.null`);
+        } else {
+          query = query.eq('account_id', targetAccount);
+        }
+
+        const { error } = await query.in('status', statuses);
         if (error) throw error;
         return { statusCode: 200, body: JSON.stringify({ success: true }) };
       }

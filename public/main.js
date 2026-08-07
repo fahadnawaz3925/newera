@@ -17,7 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectedCountSpan = document.getElementById('selected-count');
   const selectedLoader = document.getElementById('selected-loader');
 
+  const selectAllPendingCheckbox = document.getElementById('select-all-pending');
+  const deleteSelectedPendingBtn = document.getElementById('delete-selected-pending-btn');
+  const pendingSelectedCountSpan = document.getElementById('pending-selected-count');
+  const pendingSelectedLoader = document.getElementById('pending-selected-loader');
+  const clearPendingBtn = document.getElementById('clear-pending-btn');
+  const clearPendingLoader = document.getElementById('clear-pending-loader');
+  const clearDbAllBtn = document.getElementById('clear-db-all-btn');
+  const clearDbAllLoader = document.getElementById('clear-db-all-loader');
+
   const selectedActivityIds = new Set();
+  const selectedPendingIds = new Set();
 
   let isDragging = false;
 
@@ -58,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (accountSelect) {
     accountSelect.addEventListener('change', () => {
       selectedActivityIds.clear();
+      selectedPendingIds.clear();
       updateSelectedUI();
       fetchQueue();
     });
@@ -198,22 +209,32 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function updateSelectedUI() {
-    const count = selectedActivityIds.size;
-    if (selectedCountSpan) selectedCountSpan.textContent = count;
+    const countActivity = selectedActivityIds.size;
+    if (selectedCountSpan) selectedCountSpan.textContent = countActivity;
     if (deleteSelectedBtn) {
-      if (count > 0) {
+      if (countActivity > 0) {
         deleteSelectedBtn.classList.remove('hidden');
       } else {
         deleteSelectedBtn.classList.add('hidden');
       }
     }
     
-    const checkboxes = activityList.querySelectorAll('.activity-checkbox');
+    const countPending = selectedPendingIds.size;
+    if (pendingSelectedCountSpan) pendingSelectedCountSpan.textContent = countPending;
+    if (deleteSelectedPendingBtn) {
+      if (countPending > 0) {
+        deleteSelectedPendingBtn.classList.remove('hidden');
+      } else {
+        deleteSelectedPendingBtn.classList.add('hidden');
+      }
+    }
+
+    const activityCheckboxes = activityList.querySelectorAll('.activity-checkbox');
     if (selectAllActivityCheckbox) {
-      if (checkboxes.length > 0 && selectedActivityIds.size === checkboxes.length) {
+      if (activityCheckboxes.length > 0 && selectedActivityIds.size === activityCheckboxes.length) {
         selectAllActivityCheckbox.checked = true;
         selectAllActivityCheckbox.indeterminate = false;
-      } else if (selectedActivityIds.size > 0 && selectedActivityIds.size < checkboxes.length) {
+      } else if (selectedActivityIds.size > 0 && selectedActivityIds.size < activityCheckboxes.length) {
         selectAllActivityCheckbox.checked = false;
         selectAllActivityCheckbox.indeterminate = true;
       } else {
@@ -221,37 +242,133 @@ document.addEventListener('DOMContentLoaded', () => {
         selectAllActivityCheckbox.indeterminate = false;
       }
     }
+
+    const pendingCheckboxes = pendingList.querySelectorAll('.pending-checkbox');
+    if (selectAllPendingCheckbox) {
+      if (pendingCheckboxes.length > 0 && selectedPendingIds.size === pendingCheckboxes.length) {
+        selectAllPendingCheckbox.checked = true;
+        selectAllPendingCheckbox.indeterminate = false;
+      } else if (selectedPendingIds.size > 0 && selectedPendingIds.size < pendingCheckboxes.length) {
+        selectAllPendingCheckbox.checked = false;
+        selectAllPendingCheckbox.indeterminate = true;
+      } else {
+        selectAllPendingCheckbox.checked = false;
+        selectAllPendingCheckbox.indeterminate = false;
+      }
+    }
   }
 
-  if (activityList) {
-    activityList.addEventListener('change', (e) => {
-      if (e.target && e.target.classList.contains('activity-checkbox')) {
+  if (pendingList) {
+    pendingList.addEventListener('change', (e) => {
+      if (e.target && e.target.classList.contains('pending-checkbox')) {
         const id = e.target.dataset.id;
         if (e.target.checked) {
-          selectedActivityIds.add(id);
+          selectedPendingIds.add(id);
         } else {
-          selectedActivityIds.delete(id);
+          selectedPendingIds.delete(id);
         }
         updateSelectedUI();
       }
     });
   }
 
-  if (selectAllActivityCheckbox) {
-    selectAllActivityCheckbox.addEventListener('change', () => {
-      const checkboxes = activityList.querySelectorAll('.activity-checkbox');
-      if (selectAllActivityCheckbox.checked) {
+  if (selectAllPendingCheckbox) {
+    selectAllPendingCheckbox.addEventListener('change', () => {
+      const checkboxes = pendingList.querySelectorAll('.pending-checkbox');
+      if (selectAllPendingCheckbox.checked) {
         checkboxes.forEach(cb => {
           cb.checked = true;
-          selectedActivityIds.add(cb.dataset.id);
+          selectedPendingIds.add(cb.dataset.id);
         });
       } else {
         checkboxes.forEach(cb => {
           cb.checked = false;
-          selectedActivityIds.delete(cb.dataset.id);
+          selectedPendingIds.delete(cb.dataset.id);
         });
       }
       updateSelectedUI();
+    });
+  }
+
+  if (deleteSelectedPendingBtn) {
+    deleteSelectedPendingBtn.addEventListener('click', async () => {
+      const ids = Array.from(selectedPendingIds);
+      if (ids.length === 0) return;
+      if (!confirm(`Are you sure you want to delete ${ids.length} selected item(s) from the pending queue?`)) return;
+
+      deleteSelectedPendingBtn.disabled = true;
+      if (pendingSelectedLoader) pendingSelectedLoader.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/api/api-queue', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids })
+        });
+
+        if (!res.ok) throw new Error('Failed to delete pending items');
+        selectedPendingIds.clear();
+        updateSelectedUI();
+        await fetchQueue();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        deleteSelectedPendingBtn.disabled = false;
+        if (pendingSelectedLoader) pendingSelectedLoader.classList.add('hidden');
+      }
+    });
+  }
+
+  if (clearPendingBtn) {
+    clearPendingBtn.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to clear ALL pending items from the queue?')) return;
+      clearPendingBtn.disabled = true;
+      if (clearPendingLoader) clearPendingLoader.classList.remove('hidden');
+
+      try {
+        const accountId = accountSelect ? accountSelect.value : 'account1';
+        const res = await fetch('/api/api-queue', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clearAll: true, scope: 'pending', accountId })
+        });
+        if (!res.ok) throw new Error('Failed to clear pending queue');
+        selectedPendingIds.clear();
+        updateSelectedUI();
+        await fetchQueue();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        clearPendingBtn.disabled = false;
+        if (clearPendingLoader) clearPendingLoader.classList.add('hidden');
+      }
+    });
+  }
+
+  if (clearDbAllBtn) {
+    clearDbAllBtn.addEventListener('click', async () => {
+      if (!confirm('⚠️ WARNING: This will permanently delete ALL pending items and history logs for this account from the database. Proceed?')) return;
+      clearDbAllBtn.disabled = true;
+      if (clearDbAllLoader) clearDbAllLoader.classList.remove('hidden');
+
+      try {
+        const accountId = accountSelect ? accountSelect.value : 'account1';
+        const res = await fetch('/api/api-queue', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clearAll: true, scope: 'all', accountId })
+        });
+        if (!res.ok) throw new Error('Failed to purge database queue');
+        selectedActivityIds.clear();
+        selectedPendingIds.clear();
+        updateSelectedUI();
+        await fetchQueue();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        clearDbAllBtn.disabled = false;
+        if (clearDbAllLoader) clearDbAllLoader.classList.add('hidden');
+      }
     });
   }
 
@@ -338,50 +455,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function startCountdownTimer(lastPublished, queueItems = []) {
     const timerSpan = document.getElementById('next-post-timer');
+    const progressBar = document.getElementById('loop-progress-bar');
+    const statusDot = document.getElementById('loop-status-dot');
     if (!timerSpan) return;
     
     if (countdownInterval) clearInterval(countdownInterval);
     
-    timerSpan.style.display = 'inline-block';
+    timerSpan.style.display = 'block';
     
     const activeItems = queueItems.filter(item => item.status === 'PENDING' || item.status === 'PROCESSING');
     if (activeItems.length === 0) {
-      timerSpan.textContent = 'Next post: Queue empty';
-      timerSpan.style.background = 'rgba(107, 114, 128, 0.1)';
+      timerSpan.textContent = 'Next post: Queue Empty';
       timerSpan.style.color = '#9ca3af';
-      timerSpan.style.borderColor = 'rgba(107, 114, 128, 0.2)';
+      if (progressBar) progressBar.style.width = '0%';
+      if (statusDot) statusDot.style.background = '#6b7280';
       return;
     }
     
     const isCurrentlyProcessing = queueItems.some(item => item.status === 'PROCESSING');
     if (isCurrentlyProcessing) {
-      timerSpan.textContent = 'Next post: Currently processing... ⚡';
-      timerSpan.style.background = 'rgba(59, 130, 246, 0.1)';
+      timerSpan.textContent = 'Next post: Processing Video Now... ⚡';
       timerSpan.style.color = '#60a5fa';
-      timerSpan.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+      if (progressBar) progressBar.style.width = '100%';
+      if (statusDot) statusDot.style.background = '#3b82f6';
       return;
     }
 
     if (!lastPublished || lastPublished === 0) {
-      timerSpan.textContent = 'Next post: Due now (Processing...)';
-      timerSpan.style.background = 'rgba(16, 185, 129, 0.1)';
+      timerSpan.textContent = 'Next post: Due Now (Starting...)';
       timerSpan.style.color = '#34d399';
-      timerSpan.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+      if (progressBar) progressBar.style.width = '100%';
+      if (statusDot) statusDot.style.background = '#10b981';
       return;
     }
     
+    const cycleMs = 20 * 60 * 1000; // 20 mins minimum interval
+    
     const updateTimer = () => {
-      const targetTime = lastPublished + (20 * 60 * 1000); // 20 mins minimum interval
+      const targetTime = lastPublished + cycleMs;
       const now = Date.now();
       const diff = targetTime - now;
-      
+      const elapsed = now - lastPublished;
+      const progressPercent = Math.min(100, Math.max(0, (elapsed / cycleMs) * 100));
+
+      if (progressBar) progressBar.style.width = `${progressPercent}%`;
+
       if (diff <= 0) {
-        timerSpan.textContent = 'Next post: Due now (Posting...) 🚀';
-        timerSpan.style.background = 'rgba(245, 158, 11, 0.1)';
+        timerSpan.textContent = 'Next post: Due Now (Posting...) 🚀';
         timerSpan.style.color = '#fbbf24';
-        timerSpan.style.borderColor = 'rgba(245, 158, 11, 0.2)';
+        if (statusDot) statusDot.style.background = '#f59e0b';
         
-        // Trigger background worker if overdue
         if (!window.hasTriggeredWorkerForThisDrop) {
           window.hasTriggeredWorkerForThisDrop = true;
           fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
@@ -390,10 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
         window.hasTriggeredWorkerForThisDrop = false;
         const mins = Math.floor(diff / 60000);
         const secs = Math.floor((diff % 60000) / 1000);
-        timerSpan.textContent = `Next post in ~${mins}m ${secs}s`;
-        timerSpan.style.background = 'rgba(16, 185, 129, 0.1)';
+        const minsStr = String(mins).padStart(2, '0');
+        const secsStr = String(secs).padStart(2, '0');
+        
+        timerSpan.textContent = `Next post in: ${minsStr}m ${secsStr}s`;
         timerSpan.style.color = '#34d399';
-        timerSpan.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+        if (statusDot) statusDot.style.background = '#10b981';
       }
     };
     
@@ -447,10 +572,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (item.status === 'PENDING') {
         pendingCount++;
+        const isChecked = selectedPendingIds.has(item.id);
         pendingHtml += `
           <div class="tracker-item ${statusClass}" data-id="${item.id}">
             <div class="tracker-header">
               <div class="tracker-url-container">
+                <input type="checkbox" class="pending-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #ef4444; margin-right: 10px; flex-shrink: 0;" />
                 <span class="drag-handle" title="Drag to reorder">☰</span>
                 <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.style.display='none'" />
                 <span class="tracker-url" title="${item.url}">${item.url}</span>
