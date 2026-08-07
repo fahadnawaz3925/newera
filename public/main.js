@@ -74,14 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // FAIL-SAFE: Netlify free-tier Cron triggers can be extremely unreliable and suspend if there's no traffic.
-  // Since you keep the dashboard open, this will ping the worker every 2 minutes. 
-  // The backend organic delay logic (20-25 mins) will safely block any premature execution,
-  // but this guarantees the post goes out exactly when the timer hits zero without relying on Netlify's cron.
-  setInterval(() => {
-    console.log('Sending heartbeat to background worker...');
-    fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
-  }, 2 * 60 * 1000); // Every 2 minutes
+  // DISABLED: Oracle Cloud VM daemon now handles all processing 24/7.
+  // The Vercel serverless heartbeat was causing conflicts (both picking up same videos, Vercel timing out).
+  // setInterval(() => {
+  //   console.log('Sending heartbeat to background worker...');
+  //   fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
+  // }, 2 * 60 * 1000);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -165,8 +163,8 @@ document.addEventListener('DOMContentLoaded', () => {
       urlsInput.value = '';
       document.getElementById('file-upload').value = '';
       
-      // Kick off the background worker instantly so the first video starts NOW
-      fetch('/api/process-worker-background', { method: 'POST' }).catch(e => console.error(e));
+      // DISABLED: Oracle Cloud VM daemon picks up new items automatically within 15 seconds
+      // fetch('/api/process-worker-background', { method: 'POST' }).catch(e => console.error(e));
 
       // Fetch updated queue immediately
       await fetchQueue();
@@ -505,10 +503,11 @@ document.addEventListener('DOMContentLoaded', () => {
         timerSpan.style.color = '#fbbf24';
         if (statusDot) statusDot.style.background = '#f59e0b';
         
-        if (!window.hasTriggeredWorkerForThisDrop) {
-          window.hasTriggeredWorkerForThisDrop = true;
-          fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
-        }
+        // DISABLED: Oracle Cloud VM daemon handles processing
+        // if (!window.hasTriggeredWorkerForThisDrop) {
+        //   window.hasTriggeredWorkerForThisDrop = true;
+        //   fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
+        // }
       } else {
         window.hasTriggeredWorkerForThisDrop = false;
         const mins = Math.floor(diff / 60000);

@@ -44,7 +44,7 @@ async function getYtDlpBinary() {
 
 async function processSingleItem(supabase, S3, bucketName, item, targetAccount) {
   let IG_BUSINESS_ACCOUNT_ID, PAGE_ACCESS_TOKEN, IG_SESSION_ID;
-  
+
   if (targetAccount === 'account2') {
     IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_2;
     PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_2;
@@ -54,7 +54,7 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
     PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_1;
     IG_SESSION_ID = process.env.IG_SESSION_ID_1;
   }
-  
+
   if (!IG_BUSINESS_ACCOUNT_ID || !PAGE_ACCESS_TOKEN) {
     const errMsg = `Missing env vars for ${targetAccount} (IG_BUSINESS_ACCOUNT_ID or PAGE_ACCESS_TOKEN)`;
     console.error(errMsg);
@@ -86,19 +86,19 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
     if (isDirectUpload) {
       rawUploadStoragePath = item.url.replace('supabase://', '');
       console.log(`Direct upload detected for ${targetAccount}. Downloading from R2: ${rawUploadStoragePath}`);
-      
+
       const ext = path.extname(rawUploadStoragePath) || '.mp4';
       downloadedFile = `${fileId}_raw${ext}`;
       const destPath = path.join(tempDir, downloadedFile);
-      
+
       const getRawCmd = new GetObjectCommand({ Bucket: bucketName, Key: rawUploadStoragePath });
       const getRawRes = await S3.send(getRawCmd);
       const arrayBuffer = await getRawRes.Body.transformToByteArray();
       fs.writeFileSync(destPath, Buffer.from(arrayBuffer));
-      
+
     } else {
       console.log(`Downloading external URL ${item.url} for ${targetAccount} via yt-dlp to temp directory`);
-      
+
       try {
         // Always get the best available standalone binary (no Python dependency)
         const ytDlpCustom = await getYtDlpBinary();
@@ -109,7 +109,7 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
           ytDlpOptions.extractorArgs = 'youtube:player_client=android';
           ytDlpOptions.jsRuntimes = 'node';
         }
-        
+
         let downloadSuccess = false;
         let retryCount = 0;
         while (!downloadSuccess && retryCount < 3) {
@@ -136,13 +136,13 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
       downloadedFile = files.find(f => f.startsWith(fileId) && !f.endsWith('.info.json'));
       if (!downloadedFile) throw new Error(`yt-dlp failed to create file for ${item.url}`);
     }
-    
+
     const finalFilePath = path.join(tempDir, downloadedFile);
-    
+
     console.log(`Running advanced Anti-Detection & Uniqueness FFmpeg transformations for ${targetAccount}...`);
     const outputExt = '.mp4';
     const transformedFilePath = path.join(tempDir, `transformed_${fileId}${outputExt}`);
-    
+
     // 1. Micro-Speed & Timestamp (PTS) alteration (+/- 1.2%)
     const speedFactor = Number((0.988 + Math.random() * 0.024).toFixed(4));
     const setptsFactor = Number((1 / speedFactor).toFixed(4));
@@ -169,7 +169,7 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
     const metaTitle = `@${creatorTag}_${randomSalt}`;
     const creationTime = new Date(Date.now() - Math.floor(Math.random() * 3600000)).toISOString();
     const randomCrf = Math.floor(Math.random() * 3) + 22; // 22, 23, 24
-    
+
     const ext = path.extname(downloadedFile).toLowerCase();
     const isImage = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
 
@@ -200,11 +200,11 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
     const infoJsonFile = filesForInfo.find(f => f.startsWith(fileId) && f.endsWith('.info.json'));
     let aiCaption = '';
     let videoDuration = 15;
-    
+
     try {
       let originalDescription = '';
       let uploaderName = 'User';
-      
+
       if (infoJsonFile) {
         const infoJsonPath = path.join(tempDir, infoJsonFile);
         const infoData = JSON.parse(fs.readFileSync(infoJsonPath, 'utf8'));
@@ -213,9 +213,9 @@ async function processSingleItem(supabase, S3, bucketName, item, targetAccount) 
         if (infoData.duration) videoDuration = infoData.duration;
         fs.unlinkSync(infoJsonPath);
       }
-      
-      const cleanUploader = (uploaderName && !['user', 'unknown', 'buffedboujee', 'faith.canvas38', 'faithcanvas'].includes(uploaderName.toLowerCase().trim())) 
-        ? uploaderName.trim() 
+
+      const cleanUploader = (uploaderName && !['user', 'unknown', 'buffedboujee', 'faith.canvas38', 'faithcanvas'].includes(uploaderName.toLowerCase().trim()))
+        ? uploaderName.trim()
         : null;
 
       if (process.env.GEMINI_API_KEY) {
@@ -254,7 +254,7 @@ Original description for context: "${originalDescription || ''}"`;
         for (const modelName of modelsToTry) {
           try {
             console.log(`Attempting caption generation with model: ${modelName} for ${targetAccount}`);
-            const model = genAI.getGenerativeModel({ 
+            const model = genAI.getGenerativeModel({
               model: modelName,
               generationConfig: { temperature: 0.85, topP: 0.95 },
               safetySettings: [
@@ -325,11 +325,11 @@ Original description for context: "${originalDescription || ''}"`;
     const metaCreateUrl = `https://graph.facebook.com/v19.0/${IG_BUSINESS_ACCOUNT_ID}/media`;
     const metaPayload = { media_type: 'REELS', video_url: publicUrl, access_token: PAGE_ACCESS_TOKEN, share_to_feed: 'true' };
     if (aiCaption) metaPayload.caption = aiCaption;
-    
+
     const randomOffsetMs = Math.floor((Math.random() * (Math.max(1, videoDuration - 2)) + 1) * 1000);
     metaPayload.thumb_offset = randomOffsetMs.toString();
 
-    const createRes = await fetch(metaCreateUrl, { 
+    const createRes = await fetch(metaCreateUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -380,12 +380,12 @@ Original description for context: "${originalDescription || ''}"`;
 
     // 8. Cleanup R2 temporary asset & update cooldown timestamp
     await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: uploadName })).catch(e => console.error(e));
-    
-    const finalLockCmd = new PutObjectCommand({ 
-      Bucket: bucketName, 
-      Key: `last_published_${targetAccount}.txt`, 
-      Body: Date.now().toString(), 
-      ContentType: 'text/plain' 
+
+    const finalLockCmd = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: `last_published_${targetAccount}.txt`,
+      Body: Date.now().toString(),
+      ContentType: 'text/plain'
     });
     await S3.send(finalLockCmd).catch(e => console.error(e));
 
@@ -398,7 +398,7 @@ Original description for context: "${originalDescription || ''}"`;
         const tempDir = os.tmpdir();
         const leftoverFiles = fs.readdirSync(tempDir).filter(f => f.startsWith(fileId));
         for (const f of leftoverFiles) {
-          try { fs.unlinkSync(path.join(tempDir, f)); } catch (e) {}
+          try { fs.unlinkSync(path.join(tempDir, f)); } catch (e) { }
         }
         await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: `${fileId}.mp4` })).catch(e => console.error(e));
         if (rawUploadStoragePath) {
@@ -411,7 +411,7 @@ Original description for context: "${originalDescription || ''}"`;
   }
 }
 
-const handler = async function(event, context) {
+const handler = async function (event, context) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -425,7 +425,7 @@ const handler = async function(event, context) {
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
   const bucketName = process.env.R2_BUCKET_NAME || 'reels';
-  
+
   if (!accountIdR2 || !accessKeyId || !secretAccessKey) {
     console.error('Missing R2 environment variables');
     return { statusCode: 500 };
@@ -439,7 +439,7 @@ const handler = async function(event, context) {
 
   try {
     const supportedAccounts = ['account1', 'account2'];
-    
+
     // Evaluate each account independently to ensure zero starvation across accounts
     for (const targetAccount of supportedAccounts) {
       try {
@@ -448,7 +448,7 @@ const handler = async function(event, context) {
           .from('reels_queue')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'PROCESSING');
-        
+
         if (targetAccount === 'account1') {
           procQuery = procQuery.or('account_id.eq.account1,account_id.is.null');
         } else {
@@ -459,7 +459,7 @@ const handler = async function(event, context) {
         if (activeProcs && activeProcs.length > 0) {
           const tenMinsAgo = Date.now() - 10 * 60 * 1000;
           const staleItems = activeProcs.filter(item => new Date(item.created_at).getTime() < tenMinsAgo);
-          
+
           if (staleItems.length > 0) {
             console.log(`Resetting ${staleItems.length} orphaned processing item(s) for ${targetAccount} back to PENDING...`);
             const staleIds = staleItems.map(i => i.id);
@@ -481,7 +481,7 @@ const handler = async function(event, context) {
         } catch (e) {
           // File not found or first run
         }
-        
+
         const now = Date.now();
         const cooldownMinutes = (now - (isNaN(lastPub) ? 0 : lastPub)) / (1000 * 60);
 
@@ -490,7 +490,7 @@ const handler = async function(event, context) {
           .from('reels_queue')
           .select('*')
           .eq('status', 'PENDING');
-        
+
         if (targetAccount === 'account1') {
           query = query.or('account_id.eq.account1,account_id.is.null');
         } else {
