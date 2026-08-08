@@ -39,30 +39,55 @@ const ytDlpBinary = fs.existsSync(localYtDlp) ? localYtDlp : 'yt-dlp';
 // Sleep helper
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// Helper for Gemini Multimodal Image Input
+function fileToGenerativePart(filePath, mimeType = 'image/jpeg') {
+  return {
+    inlineData: {
+      data: Buffer.from(fs.readFileSync(filePath)).toString('base64'),
+      mimeType
+    },
+  };
+}
+
 // AI Caption Generator
-async function generateCaption(videoUrl, rawPath, targetAccount) {
+async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = null) {
   const geminiKey = process.env.GEMINI_API_KEY;
+  const hasCoverImage = coverPath && fs.existsSync(coverPath);
 
   if (targetAccount === 'account2') {
     if (!geminiKey) return "Oddly satisfying leather shoe shining ASMR ✨🎧 Relax and enjoy the restoration process #ASMR #ShoeShine #LeatherRestoration #OddlySatisfying #Satisfying #ASMRSounds #LeatherShining";
 
-    const prompt = `Write an engaging, viral Instagram Reel caption for a leather shoe polishing ASMR video. 
+    const prompt = hasCoverImage
+      ? `You are an expert viral Instagram Reel creator. Look closely at this video frame/image.
+Write an engaging, viral Instagram Reel caption tailored EXACTLY to what is shown in this shoe care / ASMR video.
+Include:
+1. A satisfying, hooky title with relevant emojis matching what is happening in the video (e.g. 👞✨, 🎧💆‍♂️).
+2. A brief 1-2 sentence description highlighting the specific shoe type, leather shine, restoration process, or sound shown in this video.
+3. 6-8 relevant viral hashtags tailored to the video content (e.g., #ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds #LeatherCare).
+Keep text clean, respectful, and appealing. Do NOT use markdown headings (like ###) or code blocks.`
+      : `Write an engaging, viral Instagram Reel caption for a leather shoe polishing ASMR video. 
 Include:
 1. A satisfying, hooky title with relevant emojis (e.g. 👞✨, 🎧💆‍♂️).
 2. A brief 1-2 sentence description highlighting the satisfying process, the shine, or the relaxing sounds of leather shoe polishing/restoration.
-3. 5-8 relevant viral hashtags (e.g., #ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds #LeatherCare).
+3. 6-8 relevant viral hashtags (e.g., #ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds #LeatherCare).
 Keep text clean, respectful, and appealing to ASMR/satisfying video fans. Do NOT include markdown code blocks or quotes around the caption.`;
 
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.0-flash-001', 'gemini-2.5-pro'];
+    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-2.5-pro'];
 
     for (const modelName of modelsToTry) {
       try {
-        console.log(`Attempting caption generation with model: ${modelName} for ${targetAccount}`);
+        console.log(`Attempting visual caption generation with model: ${modelName} for ${targetAccount}...`);
         const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
-        const text = result.response?.text()?.trim();
+        const contents = hasCoverImage
+          ? [prompt, fileToGenerativePart(coverPath)]
+          : [prompt];
+        
+        const result = await model.generateContent(contents);
+        let text = result.response?.text()?.trim();
         if (text) {
+          // Clean markdown header artifacts if any
+          text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
           console.log(`Caption successfully generated using model: ${modelName}`);
           return text;
         }
@@ -74,23 +99,37 @@ Keep text clean, respectful, and appealing to ASMR/satisfying video fans. Do NOT
   } else {
     if (!geminiKey) return "SubhanAllah ✨ Powerful Islamic Reminder #Islamic #Shorts #Reels #Iman #Quran";
 
-    const prompt = `Write an engaging, viral Instagram Reel caption for an Islamic video. 
+    const prompt = hasCoverImage
+      ? `You are an expert viral Instagram Reel creator. Look closely at this video frame/image.
+Write an inspiring, engaging, and beautiful viral Instagram Reel caption tailored EXACTLY to what is shown in this video.
+Include:
+1. An inspiring title/hook with emoji matching the visual content (e.g. Quran recitation, Islamic reminder, Dua, Kaaba, nature reflection).
+2. A short 2-3 sentence reflection/lesson about Iman, Taqwa, or remembrance of Allah related specifically to this video's topic.
+3. 6-8 relevant viral hashtags tailored to the video content (e.g., #IslamicReminders #Quran #Sunnah #Deen #Hadith #Allah #Islam #DeenOverDunya).
+Keep text clean, respectful, and beautiful. Do NOT use markdown headings (like ###) or code blocks.`
+      : `Write an engaging, viral Instagram Reel caption for an Islamic video. 
 Include:
 1. An inspiring title/hook with emoji.
 2. A short 2-3 sentence reflection/lesson about Iman, Taqwa, or remembrance of Allah.
-3. 5-8 relevant viral hashtags (e.g., #IslamicReminders #Quran #Sunnah #Deen #Hadith #DeenOverDunya).
+3. 6-8 relevant viral hashtags (e.g., #IslamicReminders #Quran #Sunnah #Deen #Hadith #DeenOverDunya #Islam).
 Keep text clean, respectful, and beautiful. Do NOT include markdown code blocks or quotes around the caption.`;
 
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.0-flash-001', 'gemini-2.5-pro'];
+    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-2.5-pro'];
 
     for (const modelName of modelsToTry) {
       try {
-        console.log(`Attempting caption generation with model: ${modelName} for ${targetAccount}`);
+        console.log(`Attempting visual caption generation with model: ${modelName} for ${targetAccount}...`);
         const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
-        const text = result.response?.text()?.trim();
+        const contents = hasCoverImage
+          ? [prompt, fileToGenerativePart(coverPath)]
+          : [prompt];
+
+        const result = await model.generateContent(contents);
+        let text = result.response?.text()?.trim();
         if (text) {
+          // Clean markdown header artifacts if any
+          text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
           console.log(`Caption successfully generated using model: ${modelName}`);
           return text;
         }
@@ -233,9 +272,9 @@ async function processSingleItem(item, targetAccount) {
 
     await execa(ffmpegBinary, ffmpegArgs);
 
-    // AI Caption Generation
-    console.log(`Generating AI Caption...`);
-    const caption = await generateCaption(item.url, rawUploadStoragePath, targetAccount);
+    // AI Caption Generation (Multimodal Visual Analysis of Video Frame)
+    console.log(`Generating AI Caption based on video visual analysis...`);
+    const caption = await generateCaption(item.url, rawUploadStoragePath, targetAccount, coverPath);
 
     // Upload Transformed Video & Cover to Cloudflare R2
     const uploadName = `${fileId}.mp4`;
