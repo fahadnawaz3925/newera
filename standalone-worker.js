@@ -29,6 +29,13 @@ const S3 = new S3Client({
   credentials: { accessKeyId, secretAccessKey },
 });
 
+// Binary path resolvers
+const ffmpegStatic = require('ffmpeg-static');
+const ffmpegBinary = (ffmpegStatic && fs.existsSync(ffmpegStatic)) ? ffmpegStatic : 'ffmpeg';
+
+const localYtDlp = path.join(__dirname, 'node_modules', 'yt-dlp-exec', 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+const ytDlpBinary = fs.existsSync(localYtDlp) ? localYtDlp : 'yt-dlp';
+
 // Sleep helper
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -160,7 +167,7 @@ async function processSingleItem(item, targetAccount) {
         ytDlpOptions.push('--cookies', cookiePath);
       }
 
-      await execa('yt-dlp', [...ytDlpOptions, item.url]);
+      await execa(ytDlpBinary, [...ytDlpOptions, item.url]);
 
       const files = fs.readdirSync(tempDir);
       downloadedFile = files.find(f => f.startsWith(fileId) && !f.endsWith('.txt') && !f.endsWith('.json'));
@@ -194,7 +201,7 @@ async function processSingleItem(item, targetAccount) {
     }
 
     try {
-      await execa('ffmpeg', [
+      await execa(ffmpegBinary, [
         '-y',
         '-ss', randomTimeStr,
         '-i', inputPath,
@@ -224,7 +231,7 @@ async function processSingleItem(item, targetAccount) {
       outputPath
     ];
 
-    await execa('ffmpeg', ffmpegArgs);
+    await execa(ffmpegBinary, ffmpegArgs);
 
     // AI Caption Generation
     console.log(`Generating AI Caption...`);
