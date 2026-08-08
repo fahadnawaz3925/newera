@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="tracker-url-container">
                 <input type="checkbox" class="pending-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #ef4444; margin-right: 10px; flex-shrink: 0;" />
                 <span class="drag-handle" title="Drag to reorder">☰</span>
-                <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.style.display='none'" />
+                <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80';" />
                 <span class="tracker-url" title="${item.url}">${item.url}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -602,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tracker-header">
               <div class="tracker-url-container">
                 <input type="checkbox" class="activity-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #ef4444; margin-right: 12px; flex-shrink: 0;" />
-                <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.style.display='none'" />
+                <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80';" />
                 <span class="tracker-url" title="${item.url}">${item.url}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -714,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `
         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 12px; overflow: hidden; min-width: 200px;">
-            <img src="${thumbnailSrc}" onerror="this.style.display='none'" style="width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" />
+            <img src="${thumbnailSrc}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80';" style="width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" />
             <div style="overflow: hidden;">
               <a href="${post.permalink}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: 500; font-size: 0.85rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 ${post.caption || post.id}
