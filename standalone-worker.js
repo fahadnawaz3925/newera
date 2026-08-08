@@ -171,16 +171,38 @@ async function processSingleItem(item, targetAccount) {
     const outputPath = path.join(tempDir, `${fileId}_transformed.mp4`);
     const coverPath = path.join(tempDir, `${fileId}_cover.jpg`);
 
-    console.log(`Extracting cover thumbnail frame with FFmpeg...`);
+    console.log(`Determining video duration and extracting a random cover frame from the video...`);
+    let randomTimeStr = '1.5';
+    try {
+      const probeRes = await execa('ffprobe', [
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        inputPath
+      ]);
+      const duration = parseFloat(probeRes.stdout?.trim());
+      if (duration && !isNaN(duration) && duration > 2) {
+        // Pick a random frame timestamp between 10% and 85% of video duration
+        const minSec = duration * 0.10;
+        const maxSec = duration * 0.85;
+        const randomSec = minSec + Math.random() * (maxSec - minSec);
+        randomTimeStr = randomSec.toFixed(2);
+        console.log(`Video duration: ${duration.toFixed(1)}s. Selected random frame timestamp: ${randomTimeStr}s`);
+      }
+    } catch (probeErr) {
+      console.warn('ffprobe duration check failed, defaulting to 1.5s frame:', probeErr.message);
+    }
+
     try {
       await execa('ffmpeg', [
         '-y',
-        '-ss', '00:00:01',
+        '-ss', randomTimeStr,
         '-i', inputPath,
         '-vframes', '1',
         '-q:v', '2',
         coverPath
       ]);
+      console.log(`Successfully extracted random cover thumbnail frame at t=${randomTimeStr}s for Instagram!`);
     } catch (coverErr) {
       console.warn('Failed to extract cover image frame:', coverErr.message);
     }
