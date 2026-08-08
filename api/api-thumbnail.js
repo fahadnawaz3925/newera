@@ -1,11 +1,27 @@
+const DEFAULT_FALLBACK_THUMB = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80';
+
 exports.handler = async (event) => {
-  const url = event.queryStringParameters.url;
+  const url = event.queryStringParameters?.url;
   if (!url) return { statusCode: 400, body: 'Missing URL' };
   
   try {
-    const res = await fetch(url); // intentionally no user-agent to force static SSR
+    if (url.startsWith('supabase://')) {
+      return {
+        statusCode: 302,
+        headers: {
+          Location: DEFAULT_FALLBACK_THUMB,
+          'Cache-Control': 'public, max-age=86400'
+        }
+      };
+    }
+
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
     const html = await res.text();
-    const match = html.match(/<meta property="og:image" content="([^"]+)"/i);
+    const match = html.match(/<meta property="og:image" content="([^"]+)"/i) || html.match(/<meta content="([^"]+)" property="og:image"/i);
     
     if (match && match[1]) {
       return {
@@ -17,10 +33,22 @@ exports.handler = async (event) => {
       };
     }
     
-    return { statusCode: 404, body: 'Thumbnail not found in HTML' };
+    return {
+      statusCode: 302,
+      headers: {
+        Location: DEFAULT_FALLBACK_THUMB,
+        'Cache-Control': 'public, max-age=86400'
+      }
+    };
   } catch (err) {
-    console.error(err);
-    return { statusCode: 500, body: 'Error fetching thumbnail' };
+    console.error('Error fetching thumbnail:', err);
+    return {
+      statusCode: 302,
+      headers: {
+        Location: DEFAULT_FALLBACK_THUMB,
+        'Cache-Control': 'public, max-age=86400'
+      }
+    };
   }
 };
 

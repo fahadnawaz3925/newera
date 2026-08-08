@@ -35,10 +35,10 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 // AI Caption Generator
 async function generateCaption(videoUrl, rawPath, targetAccount) {
   const geminiKey = process.env.GEMINI_API_KEY;
-  
+
   if (targetAccount === 'account2') {
     if (!geminiKey) return "Oddly satisfying leather shoe shining ASMR ✨🎧 Relax and enjoy the restoration process #ASMR #ShoeShine #LeatherRestoration #OddlySatisfying #Satisfying #ASMRSounds #LeatherShining";
-    
+
     const prompt = `Write an engaging, viral Instagram Reel caption for a leather shoe polishing ASMR video. 
 Include:
 1. A satisfying, hooky title with relevant emojis (e.g. 👞✨, 🎧💆‍♂️).
@@ -47,20 +47,20 @@ Include:
 Keep text clean, respectful, and appealing to ASMR/satisfying video fans. Do NOT include markdown code blocks or quotes around the caption.`;
 
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest'];
+    const modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.0-flash-001', 'gemini-2.5-pro'];
 
     for (const modelName of modelsToTry) {
       try {
         console.log(`Attempting caption generation with model: ${modelName} for ${targetAccount}`);
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await model.generateContent(prompt);
-        const text = result.response.text().trim();
+        const text = result.response?.text()?.trim();
         if (text) {
           console.log(`Caption successfully generated using model: ${modelName}`);
           return text;
         }
       } catch (err) {
-        console.warn(`Model ${modelName} failed:`, err.message);
+        console.warn(`Model ${modelName} failed for ${targetAccount}:`, err.message);
       }
     }
     return "Oddly satisfying leather shoe shining ASMR ✨🎧 Relax and enjoy the restoration process #ASMR #ShoeShine #LeatherRestoration #OddlySatisfying #Satisfying #ASMRSounds #LeatherShining";
@@ -75,29 +75,30 @@ Include:
 Keep text clean, respectful, and beautiful. Do NOT include markdown code blocks or quotes around the caption.`;
 
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const modelsToTry = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest'];
+    const modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.0-flash-001', 'gemini-2.5-pro'];
 
     for (const modelName of modelsToTry) {
       try {
         console.log(`Attempting caption generation with model: ${modelName} for ${targetAccount}`);
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await model.generateContent(prompt);
-        const text = result.response.text().trim();
+        const text = result.response?.text()?.trim();
         if (text) {
           console.log(`Caption successfully generated using model: ${modelName}`);
           return text;
         }
       } catch (err) {
-        console.warn(`Model ${modelName} failed:`, err.message);
+        console.warn(`Model ${modelName} failed for ${targetAccount}:`, err.message);
       }
     }
+    return "SubhanAllah ✨ Powerful Islamic Reminder #Islamic #Shorts #Reels #Iman #Quran #Sunnah #Deen";
   }
 }
 
 // Single Video Processor
 async function processSingleItem(item, targetAccount) {
   let IG_BUSINESS_ACCOUNT_ID, PAGE_ACCESS_TOKEN, IG_SESSION_ID;
-  
+
   if (targetAccount === 'account2') {
     IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_2;
     PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_2;
@@ -107,7 +108,7 @@ async function processSingleItem(item, targetAccount) {
     PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_1;
     IG_SESSION_ID = process.env.IG_SESSION_ID_1;
   }
-  
+
   if (!IG_BUSINESS_ACCOUNT_ID || !PAGE_ACCESS_TOKEN) {
     const errMsg = `Missing env vars for ${targetAccount} (IG_BUSINESS_ACCOUNT_ID or PAGE_ACCESS_TOKEN)`;
     console.error(errMsg);
@@ -142,16 +143,16 @@ async function processSingleItem(item, targetAccount) {
     if (isDirectUpload) {
       rawUploadStoragePath = item.url.replace('supabase://', '');
       console.log(`Direct upload detected. Downloading from R2: ${rawUploadStoragePath}`);
-      
+
       const ext = path.extname(rawUploadStoragePath) || '.mp4';
       downloadedFile = `${fileId}_raw${ext}`;
       const destPath = path.join(tempDir, downloadedFile);
-      
+
       const getRawCmd = new GetObjectCommand({ Bucket: bucketName, Key: rawUploadStoragePath });
       const getRawRes = await S3.send(getRawCmd);
       const arrayBuffer = await getRawRes.Body.transformToByteArray();
       fs.writeFileSync(destPath, Buffer.from(arrayBuffer));
-      
+
     } else {
       console.log(`Downloading video ${item.url} via yt-dlp...`);
       const ytDlpOptions = ['-o', tempFileTemplate, '-f', 'best', '--no-playlist'];
@@ -168,12 +169,29 @@ async function processSingleItem(item, targetAccount) {
 
     const inputPath = path.join(tempDir, downloadedFile);
     const outputPath = path.join(tempDir, `${fileId}_transformed.mp4`);
+    const coverPath = path.join(tempDir, `${fileId}_cover.jpg`);
 
-    console.log(`Transforming video with FFmpeg for uniqueness...`);
+    console.log(`Extracting cover thumbnail frame with FFmpeg...`);
+    try {
+      await execa('ffmpeg', [
+        '-y',
+        '-ss', '00:00:01',
+        '-i', inputPath,
+        '-vframes', '1',
+        '-q:v', '2',
+        coverPath
+      ]);
+    } catch (coverErr) {
+      console.warn('Failed to extract cover image frame:', coverErr.message);
+    }
+
+    console.log(`Transforming video with FFmpeg (stripping metadata & shifting sound frequency for uniqueness)...`);
     const ffmpegArgs = [
       '-y',
       '-i', inputPath,
+      '-map_metadata', '-1',
       '-vf', 'eq=brightness=0.01:contrast=1.02:saturation=1.03,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2',
+      '-af', 'asetrate=44100*1.01,aresample=44100',
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-threads', '2',
@@ -190,8 +208,10 @@ async function processSingleItem(item, targetAccount) {
     console.log(`Generating AI Caption...`);
     const caption = await generateCaption(item.url, rawUploadStoragePath, targetAccount);
 
-    // Upload Transformed Video to Cloudflare R2
+    // Upload Transformed Video & Cover to Cloudflare R2
     const uploadName = `${fileId}.mp4`;
+    const coverName = `${fileId}_cover.jpg`;
+
     console.log(`Uploading transformed video to R2 (${uploadName})...`);
     const fileStream = fs.createReadStream(outputPath);
     const putObjectCmd = new PutObjectCommand({
@@ -205,7 +225,27 @@ async function processSingleItem(item, targetAccount) {
     // Generate a presigned URL (valid 1 hour) so Meta can download the video
     const getCmd = new GetObjectCommand({ Bucket: bucketName, Key: uploadName });
     const publicVideoUrl = await getSignedUrl(S3, getCmd, { expiresIn: 3600 });
-    console.log(`Presigned URL generated for Meta (expires in 1h)`);
+    console.log(`Presigned video URL generated for Meta (expires in 1h)`);
+
+    let publicCoverUrl = null;
+    if (fs.existsSync(coverPath)) {
+      console.log(`Uploading cover image thumbnail to R2 (${coverName})...`);
+      const coverStream = fs.createReadStream(coverPath);
+      await S3.send(new PutObjectCommand({
+        Bucket: bucketName,
+        Key: coverName,
+        Body: coverStream,
+        ContentType: 'image/jpeg',
+      })).catch(e => console.warn('Cover R2 upload failed:', e.message));
+
+      try {
+        const getCoverCmd = new GetObjectCommand({ Bucket: bucketName, Key: coverName });
+        publicCoverUrl = await getSignedUrl(S3, getCoverCmd, { expiresIn: 3600 });
+        console.log(`Presigned cover URL generated for Meta`);
+      } catch (e) {
+        console.warn('Failed to presign cover URL:', e.message);
+      }
+    }
 
     // Meta Reel Upload
     console.log(`Creating Meta Reel container for ${targetAccount}...`);
@@ -215,6 +255,10 @@ async function processSingleItem(item, targetAccount) {
       caption: caption,
       access_token: PAGE_ACCESS_TOKEN
     };
+
+    if (publicCoverUrl) {
+      metaPayload.cover_url = publicCoverUrl;
+    }
 
     const createRes = await fetch(`https://graph.facebook.com/v19.0/${IG_BUSINESS_ACCOUNT_ID}/media`, {
       method: 'POST',
@@ -258,15 +302,16 @@ async function processSingleItem(item, targetAccount) {
     await supabase.from('reels_queue').update({ status: 'PUBLISHED', error_log: null }).eq('id', item.id);
 
     // Update last_published timestamp in R2
-    await S3.send(new PutObjectCommand({ 
-      Bucket: bucketName, 
-      Key: `last_published_${targetAccount}.txt`, 
-      Body: Date.now().toString(), 
-      ContentType: 'text/plain' 
+    await S3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: `last_published_${targetAccount}.txt`,
+      Body: Date.now().toString(),
+      ContentType: 'text/plain'
     })).catch(e => console.error(e));
 
-    // Cleanup R2 temporary video asset
+    // Cleanup R2 temporary video asset and cover image
     await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: uploadName })).catch(e => console.error(e));
+    await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: coverName })).catch(e => console.error(e));
 
   } catch (processError) {
     console.error(`❌ Error processing item ${item.id} for ${targetAccount}:`, processError.message);
@@ -277,9 +322,10 @@ async function processSingleItem(item, targetAccount) {
         const tempDir = os.tmpdir();
         const leftoverFiles = fs.readdirSync(tempDir).filter(f => f.startsWith(fileId));
         for (const f of leftoverFiles) {
-          try { fs.unlinkSync(path.join(tempDir, f)); } catch (e) {}
+          try { fs.unlinkSync(path.join(tempDir, f)); } catch (e) { }
         }
         await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: `${fileId}.mp4` })).catch(e => console.error(e));
+        await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: `${fileId}_cover.jpg` })).catch(e => console.error(e));
         if (rawUploadStoragePath) {
           await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: rawUploadStoragePath })).catch(e => console.error(e));
         }
