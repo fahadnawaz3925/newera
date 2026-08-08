@@ -70,24 +70,26 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
     }
   }
 
-  const promptAccount2 = `You are an expert viral Instagram Reel content creator.
+  const promptAccount2 = `You are an expert viral Instagram Reel content creator for @buffedboujee (Leather Shoe Shine & ASMR channel).
 ${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
 Analyze this video and its visual frame carefully.
 Write an engaging, viral Instagram Reel caption tailored SPECIFICALLY to this video's exact topic and visual content.
 Include:
 1. A satisfying, hooky title line with relevant emojis matching the specific topic (e.g. 👞✨, 🎧💆‍♂️).
-2. A brief 2-3 sentence description highlighting the specific shoe restoration, polish, leather shine, or sound shown in this video.
-3. 6-8 relevant, highly viral hashtags tailored specifically to this video's content (e.g., #ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds).
+2. A brief 2-3 sentence description highlighting the specific shoe restoration, polish, leather shine, or ASMR sound shown in this video.
+3. A friendly call to action: "Follow @buffedboujee for daily satisfying shoe shine & ASMR 👞✨ | Headphones recommended 🎧".
+4. 6-8 relevant, highly viral hashtags tailored specifically to this video's content (e.g., #ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds #buffedboujee).
 Keep text clean, respectful, and appealing. Do NOT use markdown code blocks or header symbols (like ###).`;
 
-  const promptAccount1 = `You are an expert viral Instagram Reel content creator.
+  const promptAccount1 = `You are an expert viral Instagram Reel content creator for @faith.canvas38 (Islamic Reminders & Quran channel).
 ${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
 Analyze this video and its visual frame carefully.
 Write an inspiring, engaging, and beautiful viral Instagram Reel caption tailored SPECIFICALLY to this video's exact Islamic topic.
 Include:
 1. An inspiring title/hook with emoji matching the visual topic (e.g. Quran recitation, Islamic reminder, Dua, Kaaba, nature reflection).
 2. A short 2-3 sentence reflection/lesson about Iman, Taqwa, or remembrance of Allah related specifically to this video's topic.
-3. 6-8 relevant viral hashtags tailored to the video content (e.g., #IslamicReminders #Quran #Sunnah #Deen #Hadith #Allah #Islam #DeenOverDunya).
+3. A respectful call to action: "Follow @faith.canvas38 for daily Islamic reminders 🌿 | Save & share to spread the reminder 🕊️".
+4. 6-8 relevant viral hashtags tailored to the video content (e.g., #IslamicReminders #Quran #Sunnah #Deen #Hadith #Allah #Islam #DeenOverDunya #faithcanvas38).
 Keep text clean, respectful, and beautiful. Do NOT use markdown code blocks or header symbols (like ###).`;
 
   const prompt = targetAccount === 'account2' ? promptAccount2 : promptAccount1;
@@ -127,11 +129,11 @@ Keep text clean, respectful, and beautiful. Do NOT use markdown code blocks or h
   if (targetAccount === 'account2') {
     const titleLine = videoTitleClean ? `👞✨ ${videoTitleClean}` : `Oddly Satisfying Leather Care & Shoe Polish ASMR 🎧✨`;
     const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `Watch the satisfying transformation as worn leather is restored to a gorgeous mirror shine. Turn your sound up!`;
-    return `${titleLine}\n\n${descLine}\n\n#ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds`;
+    return `${titleLine}\n\n${descLine}\n\nFollow @buffedboujee for daily satisfying shoe shine & ASMR 👞✨ | Headphones recommended 🎧\n\n#ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds #buffedboujee`;
   } else {
     const titleLine = videoTitleClean ? `✨ ${videoTitleClean}` : `A Beautiful Reminder For Your Heart 🕊️✨`;
     const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `In the quiet moments of life, turn your heart to Allah. Trust His divine plan and timing for your life.`;
-    return `${titleLine}\n\n${descLine}\n\n#IslamicReminders #Quran #Sunnah #Deen #Hadith #DeenOverDunya #Islam #Taqwa`;
+    return `${titleLine}\n\n${descLine}\n\nFollow @faith.canvas38 for daily Islamic reminders 🌿 | Save & share to spread the reminder 🕊️\n\n#IslamicReminders #Quran #Sunnah #Deen #Hadith #DeenOverDunya #Islam #Taqwa #faithcanvas38`;
   }
 }
 
@@ -254,13 +256,36 @@ async function processSingleItem(item, targetAccount) {
       console.warn('Failed to extract cover image frame:', coverErr.message);
     }
 
-    console.log(`Transforming video with FFmpeg (stripping metadata & shifting sound frequency for uniqueness)...`);
+    console.log(`Transforming video & optimizing metadata for ${targetAccount}...`);
+    
+    // Account-specific metadata & audio frequency shift tuning
+    let metaTitle, metaArtist, metaComment, metaGenre, audioFilter;
+    if (targetAccount === 'account2') {
+      metaTitle = 'ASMR Leather Shoe Shining & Restoration | Buffed & Boujee';
+      metaArtist = 'buffedboujee';
+      metaComment = 'ASMR Shoe Shine, Leather Restoration, Oddly Satisfying, Leather Polish, Shoe Care';
+      metaGenre = 'ASMR / How-to & Style';
+      // +1.2% sound frequency shift + gentle low/highpass filter for crisp ASMR brushing sounds
+      audioFilter = 'asetrate=44100*1.012,aresample=44100,highpass=f=30,lowpass=f=17000';
+    } else {
+      metaTitle = 'Islamic Reminders & Quran Recitation | Faith Canvas';
+      metaArtist = 'faith.canvas38';
+      metaComment = 'Islamic Reminders, Quran, Sunnah, Deen Over Dunya, Taqwa, Dua, Dhikr, Hadith';
+      metaGenre = 'Nonprofit & Activism / Religious Reminders';
+      // +0.8% sound frequency shift for warm, clear voiceover/recitation
+      audioFilter = 'asetrate=44100*1.008,aresample=44100';
+    }
+
     const ffmpegArgs = [
       '-y',
       '-i', inputPath,
       '-map_metadata', '-1',
+      '-metadata', `title=${metaTitle}`,
+      '-metadata', `artist=${metaArtist}`,
+      '-metadata', `comment=${metaComment}`,
+      '-metadata', `genre=${metaGenre}`,
       '-vf', 'eq=brightness=0.01:contrast=1.02:saturation=1.03,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2',
-      '-af', 'asetrate=44100*1.01,aresample=44100',
+      '-af', audioFilter,
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-threads', '2',
