@@ -50,25 +50,27 @@ function fileToGenerativePart(filePath, mimeType = 'image/jpeg') {
   };
 }
 
-// AI Caption Generator
+// AI Caption Generator with Retry & Dynamic Video Context Fallback
 async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = null, videoMetadata = null) {
   const geminiKey = process.env.GEMINI_API_KEY;
   const hasCoverImage = coverPath && fs.existsSync(coverPath);
 
   let videoContext = '';
+  let videoTitleClean = '';
+  let videoDescClean = '';
+
   if (videoMetadata) {
     if (videoMetadata.title && !videoMetadata.title.startsWith('Video by')) {
-      videoContext += `\nVideo Title: "${videoMetadata.title}"`;
+      videoTitleClean = videoMetadata.title.trim();
+      videoContext += `\nVideo Title: "${videoTitleClean}"`;
     }
     if (videoMetadata.description && videoMetadata.description.trim().length > 10) {
-      videoContext += `\nVideo Description: "${videoMetadata.description.slice(0, 400).trim()}"`;
+      videoDescClean = videoMetadata.description.slice(0, 400).trim();
+      videoContext += `\nVideo Description: "${videoDescClean}"`;
     }
   }
 
-  if (targetAccount === 'account2') {
-    if (!geminiKey) return "Oddly satisfying leather shoe shining ASMR ✨🎧 Relax and enjoy the restoration process #ASMR #ShoeShine #LeatherRestoration #OddlySatisfying #Satisfying #ASMRSounds #LeatherShining";
-
-    const prompt = `You are an expert viral Instagram Reel content creator.
+  const promptAccount2 = `You are an expert viral Instagram Reel content creator.
 ${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
 Analyze this video and its visual frame carefully.
 Write an engaging, viral Instagram Reel caption tailored SPECIFICALLY to this video's exact topic and visual content.
@@ -78,33 +80,7 @@ Include:
 3. 6-8 relevant, highly viral hashtags tailored specifically to this video's content (e.g., #ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds).
 Keep text clean, respectful, and appealing. Do NOT use markdown code blocks or header symbols (like ###).`;
 
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-2.5-pro'];
-
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`Attempting visual caption generation with model: ${modelName} for ${targetAccount}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const contents = hasCoverImage
-          ? [prompt, fileToGenerativePart(coverPath)]
-          : [prompt];
-        
-        const result = await model.generateContent(contents);
-        let text = result.response?.text()?.trim();
-        if (text) {
-          text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
-          console.log(`Caption successfully generated using model: ${modelName}`);
-          return text;
-        }
-      } catch (err) {
-        console.warn(`Model ${modelName} failed for ${targetAccount}:`, err.message);
-      }
-    }
-    return "Oddly satisfying leather shoe shining ASMR ✨🎧 Relax and enjoy the restoration process #ASMR #ShoeShine #LeatherRestoration #OddlySatisfying #Satisfying #ASMRSounds #LeatherShining";
-  } else {
-    if (!geminiKey) return "SubhanAllah ✨ Powerful Islamic Reminder #Islamic #Shorts #Reels #Iman #Quran";
-
-    const prompt = `You are an expert viral Instagram Reel content creator.
+  const promptAccount1 = `You are an expert viral Instagram Reel content creator.
 ${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
 Analyze this video and its visual frame carefully.
 Write an inspiring, engaging, and beautiful viral Instagram Reel caption tailored SPECIFICALLY to this video's exact Islamic topic.
@@ -114,29 +90,48 @@ Include:
 3. 6-8 relevant viral hashtags tailored to the video content (e.g., #IslamicReminders #Quran #Sunnah #Deen #Hadith #Allah #Islam #DeenOverDunya).
 Keep text clean, respectful, and beautiful. Do NOT use markdown code blocks or header symbols (like ###).`;
 
+  const prompt = targetAccount === 'account2' ? promptAccount2 : promptAccount1;
+
+  if (geminiKey) {
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-2.5-pro'];
+    const modelsToTry = ['gemini-3.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
 
     for (const modelName of modelsToTry) {
-      try {
-        console.log(`Attempting visual caption generation with model: ${modelName} for ${targetAccount}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const contents = hasCoverImage
-          ? [prompt, fileToGenerativePart(coverPath)]
-          : [prompt];
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          console.log(`Attempting visual caption generation with model: ${modelName} (Attempt ${attempt}) for ${targetAccount}...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const contents = hasCoverImage
+            ? [prompt, fileToGenerativePart(coverPath)]
+            : [prompt];
 
-        const result = await model.generateContent(contents);
-        let text = result.response?.text()?.trim();
-        if (text) {
-          text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
-          console.log(`Caption successfully generated using model: ${modelName}`);
-          return text;
+          const result = await model.generateContent(contents);
+          let text = result.response?.text()?.trim();
+          if (text) {
+            text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
+            console.log(`Caption successfully generated using model: ${modelName}`);
+            return text;
+          }
+        } catch (err) {
+          console.warn(`Model ${modelName} attempt ${attempt} failed for ${targetAccount}:`, err.message);
+          if (err.message.includes('429')) {
+            console.log(`Quota 429 encountered, sleeping 3s before retry/next model...`);
+            await sleep(3000);
+          }
         }
-      } catch (err) {
-        console.warn(`Model ${modelName} failed for ${targetAccount}:`, err.message);
       }
     }
-    return "SubhanAllah ✨ Powerful Islamic Reminder #Islamic #Shorts #Reels #Iman #Quran #Sunnah #Deen";
+  }
+
+  // Dynamic Video-Specific Fallback (Never a static generic string!)
+  if (targetAccount === 'account2') {
+    const titleLine = videoTitleClean ? `👞✨ ${videoTitleClean}` : `Oddly Satisfying Leather Care & Shoe Polish ASMR 🎧✨`;
+    const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `Watch the satisfying transformation as worn leather is restored to a gorgeous mirror shine. Turn your sound up!`;
+    return `${titleLine}\n\n${descLine}\n\n#ASMR #ShoeShine #LeatherRestoration #Satisfying #ShoeCare #OddlySatisfying #ASMRSounds`;
+  } else {
+    const titleLine = videoTitleClean ? `✨ ${videoTitleClean}` : `A Beautiful Reminder For Your Heart 🕊️✨`;
+    const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `In the quiet moments of life, turn your heart to Allah. Trust His divine plan and timing for your life.`;
+    return `${titleLine}\n\n${descLine}\n\n#IslamicReminders #Quran #Sunnah #Deen #Hadith #DeenOverDunya #Islam #Taqwa`;
   }
 }
 
@@ -234,9 +229,9 @@ async function processSingleItem(item, targetAccount) {
       ]);
       const duration = parseFloat(probeRes.stdout?.trim());
       if (duration && !isNaN(duration) && duration > 2) {
-        // Pick a random frame timestamp between 10% and 85% of video duration
-        const minSec = duration * 0.10;
-        const maxSec = duration * 0.85;
+        // Pick a random frame timestamp between 15% and 80% of video duration
+        const minSec = duration * 0.15;
+        const maxSec = duration * 0.80;
         const randomSec = minSec + Math.random() * (maxSec - minSec);
         randomTimeStr = randomSec.toFixed(2);
         console.log(`Video duration: ${duration.toFixed(1)}s. Selected random frame timestamp: ${randomTimeStr}s`);
@@ -314,8 +309,9 @@ async function processSingleItem(item, targetAccount) {
 
       try {
         const getCoverCmd = new GetObjectCommand({ Bucket: bucketName, Key: coverName });
-        publicCoverUrl = await getSignedUrl(S3, getCoverCmd, { expiresIn: 3600 });
-        console.log(`Presigned cover URL generated for Meta`);
+        // Presign cover URL for 7 days (604,800s) so Meta CDN fetch succeeds cleanly!
+        publicCoverUrl = await getSignedUrl(S3, getCoverCmd, { expiresIn: 604800 });
+        console.log(`Presigned 7-day cover URL generated for Meta`);
       } catch (e) {
         console.warn('Failed to presign cover URL:', e.message);
       }
@@ -338,7 +334,7 @@ async function processSingleItem(item, targetAccount) {
     }
 
     // Log the exact caption and thumbnail config being sent
-    console.log(`📝 AI Caption (first 150 chars): ${caption.substring(0, 150)}...`);
+    console.log(`📝 AI Caption (first 150 chars):\n${caption.substring(0, 150)}...`);
     console.log(`🖼️ thumb_offset: ${thumbOffsetMs}ms | cover_url: ${publicCoverUrl ? 'YES' : 'NO'}`);
 
     const createRes = await fetch(`https://graph.facebook.com/v19.0/${IG_BUSINESS_ACCOUNT_ID}/media`, {
@@ -391,9 +387,9 @@ async function processSingleItem(item, targetAccount) {
       ContentType: 'text/plain'
     })).catch(e => console.error(e));
 
-    // Cleanup R2 temporary video asset and cover image
+    // Cleanup R2 temporary video asset (keep cover image on R2 so Meta image fetcher never 404s!)
     await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: uploadName })).catch(e => console.error(e));
-    await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: coverName })).catch(e => console.error(e));
+    console.log(`Temporary video file ${uploadName} cleaned up from R2. Cover image ${coverName} preserved for Meta.`);
 
   } catch (processError) {
     console.error(`❌ Error processing item ${item.id} for ${targetAccount}:`, processError.message);
@@ -407,7 +403,6 @@ async function processSingleItem(item, targetAccount) {
           try { fs.unlinkSync(path.join(tempDir, f)); } catch (e) { }
         }
         await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: `${fileId}.mp4` })).catch(e => console.error(e));
-        await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: `${fileId}_cover.jpg` })).catch(e => console.error(e));
         if (rawUploadStoragePath) {
           await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: rawUploadStoragePath })).catch(e => console.error(e));
         }
