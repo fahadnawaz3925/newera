@@ -27,6 +27,7 @@ const S3 = new S3Client({
   region: 'auto',
   endpoint: `https://${accountIdR2}.r2.cloudflarestorage.com`,
   credentials: { accessKeyId, secretAccessKey },
+  forcePathStyle: true,
 });
 
 // Binary path resolvers

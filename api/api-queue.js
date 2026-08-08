@@ -22,6 +22,7 @@ const handler = async (event, context) => {
       region: 'auto',
       endpoint: `https://${accountIdR2}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId, secretAccessKey },
+      forcePathStyle: true,
     });
   }
 
