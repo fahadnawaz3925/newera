@@ -337,6 +337,10 @@ async function processSingleItem(item, targetAccount) {
       metaPayload.cover_url = publicCoverUrl;
     }
 
+    // Log the exact caption and thumbnail config being sent
+    console.log(`📝 AI Caption (first 150 chars): ${caption.substring(0, 150)}...`);
+    console.log(`🖼️ thumb_offset: ${thumbOffsetMs}ms | cover_url: ${publicCoverUrl ? 'YES' : 'NO'}`);
+
     const createRes = await fetch(`https://graph.facebook.com/v19.0/${IG_BUSINESS_ACCOUNT_ID}/media`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -347,6 +351,7 @@ async function processSingleItem(item, targetAccount) {
       throw new Error(`Meta API Create Error: ${createData.error.error_user_msg || createData.error.message}`);
     }
     const creation_id = createData.id;
+    console.log(`✅ Meta container created: ${creation_id}`);
     await supabase.from('reels_queue').update({ creation_id }).eq('id', item.id);
 
     // Poll Meta Status
