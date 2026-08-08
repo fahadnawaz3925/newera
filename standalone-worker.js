@@ -256,7 +256,7 @@ async function processSingleItem(item, targetAccount) {
       console.warn('Failed to extract cover image frame:', coverErr.message);
     }
 
-    console.log(`Transforming video & spoofing iPhone 15 Pro Max camera metadata for ${targetAccount}...`);
+    console.log(`Executing Anti-Detection Pipeline: EXIF device spoofing, pHash micro-crop/noise, Audio ID evasion, & VBR encoding for ${targetAccount}...`);
     
     // Account-specific metadata & audio frequency shift tuning
     let metaTitle, metaArtist, metaComment, metaGenre, audioFilter;
@@ -265,14 +265,18 @@ async function processSingleItem(item, targetAccount) {
       metaArtist = 'buffedboujee';
       metaComment = 'ASMR Shoe Shine, Leather Restoration, Oddly Satisfying, Leather Polish, Shoe Care';
       metaGenre = 'ASMR / How-to & Style';
-      audioFilter = 'asetrate=44100*1.012,aresample=44100,highpass=f=30,lowpass=f=17000';
+      // Speed 1.015x, pitch shift, highpass/lowpass + 16kHz EQ boost for crisp ASMR
+      audioFilter = 'asetrate=44100*1.015,aresample=44100,atempo=1.015,highpass=f=35,lowpass=f=16500,equalizer=f=16000:width_type=h:width=1000:g=1.5';
     } else {
       metaTitle = 'Islamic Reminders & Quran Recitation | Faith Canvas';
       metaArtist = 'faith.canvas38';
       metaComment = 'Islamic Reminders, Quran, Sunnah, Deen Over Dunya, Taqwa, Dua, Dhikr, Hadith';
       metaGenre = 'Nonprofit & Activism / Religious Reminders';
-      audioFilter = 'asetrate=44100*1.008,aresample=44100';
+      // Speed 1.012x, pitch shift for warm vocal clarity
+      audioFilter = 'asetrate=44100*1.012,aresample=44100,atempo=1.012,equalizer=f=14000:width_type=h:width=1000:g=1.2';
     }
+
+    const currentIsoTime = new Date().toISOString();
 
     const ffmpegArgs = [
       '-y',
@@ -286,12 +290,16 @@ async function processSingleItem(item, targetAccount) {
       '-metadata', 'model=iPhone 15 Pro Max',
       '-metadata', 'encoder=iOS 17.5.1 QuickTime',
       '-metadata', 'handler_name=Core Media Data Handler',
-      '-vf', 'eq=brightness=0.01:contrast=1.02:saturation=1.03,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2',
+      '-metadata', `creation_time=${currentIsoTime}`,
+      '-vf', 'crop=iw*0.98:ih*0.98,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,eq=brightness=0.01:contrast=1.02:saturation=1.03:gamma=1.01,noise=alls=1.5:allf=t+u',
       '-af', audioFilter,
+      '-r', '29.97',
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-threads', '2',
-      '-crf', '24',
+      '-b:v', '12M',
+      '-maxrate', '15M',
+      '-bufsize', '24M',
       '-c:a', 'aac',
       '-b:a', '128k',
       '-movflags', '+faststart',
@@ -300,7 +308,11 @@ async function processSingleItem(item, targetAccount) {
 
     await execa(ffmpegBinary, ffmpegArgs);
 
-    await execa(ffmpegBinary, ffmpegArgs);
+    // Touch file modification timestamps to mirror fresh mobile capture
+    try {
+      const now = new Date();
+      fs.utimesSync(outputPath, now, now);
+    } catch (utimeErr) { }
 
     // AI Caption Generation (Multimodal Visual Analysis of Video Frame + Metadata Context)
     console.log(`Generating AI Caption based on video visual analysis & metadata...`);
