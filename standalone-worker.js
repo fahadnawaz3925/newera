@@ -635,12 +635,12 @@ async function processSingleItem(item, targetAccount) {
       let introText, outroText, accentColor;
 
       if (targetAccount === 'account2') {
-        introText = '👞 @buffedboujee';
-        outroText = 'Follow @buffedboujee for more ✨';
+        introText = '@buffedboujee';
+        outroText = 'Follow @buffedboujee for more';
         accentColor = '#D4A574';
       } else {
-        introText = '✨ @faith.canvas38';
-        outroText = 'Follow @faith.canvas38 for daily reminders 🤲';
+        introText = '@faith.canvas38';
+        outroText = 'Follow @faith.canvas38 for daily reminders';
         accentColor = '#2E7D32';
       }
 
