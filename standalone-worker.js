@@ -665,9 +665,9 @@ async function processSingleItem(item, targetAccount) {
         '-filter_complex',
         '[0:v][1:a][2:v][2:a][3:v][4:a]concat=n=3:v=1:a=1[outv][outa]',
         '-map', '[outv]', '-map', '[outa]',
-        '-c:v', 'libx264', '-preset', 'fast', '-profile:v', 'high',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-profile:v', 'main',
         '-c:a', 'aac', '-b:a', params.audioBitrate,
-        '-movflags', '+faststart',
+        '-movflags', '+faststart', '-b:v', '6M', '-maxrate', '8M', '-bufsize', '12M',
         introOutroPath
       ]);
 
