@@ -649,7 +649,7 @@ async function processSingleItem(item, targetAccount) {
         '-y',
         // Input 0: Intro (solid dark frame with text)
         '-f', 'lavfi', '-t', String(introDuration),
-        '-i', `color=c=black:s=1080x1920:r=30,format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2`,
+        '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2`,
         // Input 1: Intro silent audio
         '-f', 'lavfi', '-t', String(introDuration),
         '-i', 'anullsrc=r=44100:cl=stereo',
@@ -657,7 +657,7 @@ async function processSingleItem(item, targetAccount) {
         '-i', outputPath,
         // Input 3: Outro (solid dark frame with text)
         '-f', 'lavfi', '-t', String(outroDuration),
-        '-i', `color=c=black:s=1080x1920:r=30,format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3`,
+        '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3`,
         // Input 4: Outro silent audio
         '-f', 'lavfi', '-t', String(outroDuration),
         '-i', 'anullsrc=r=44100:cl=stereo',
