@@ -485,6 +485,9 @@ async function processSingleItem(item, targetAccount) {
     vfParts.push('scale=1080:1920:force_original_aspect_ratio=decrease');
     vfParts.push('pad=1080:1920:(ow-iw)/2:(oh-ih)/2');
 
+    // Layer 1.5: Minimal Ken Burns effect (Dynamic Zoom)
+    vfParts.push(`zoompan=z='min(pzoom+0.00010,1.05)':d=1:x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':fps=30:s=1080x1920`);
+
     // Layer 1: Randomized brightness/contrast/saturation/gamma
     vfParts.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
 
@@ -566,6 +569,8 @@ async function processSingleItem(item, targetAccount) {
 
     ffmpegArgs.push(
       '-i', inputPath,
+      // Layer 8: Background noise (faint rain/brown noise at 2.5% volume)
+      '-f', 'lavfi', '-i', 'anoisesrc=color=brown:r=44100:amplitude=0.025',
       '-map_metadata', '-1',                        // Strip ALL original metadata
       // Layer 5: Randomized device-spoofed metadata
       '-metadata', `title=${params.metaTitle}`,
@@ -579,8 +584,10 @@ async function processSingleItem(item, targetAccount) {
       '-metadata', `creation_time=${params.creationTime}`,
       // Layer 1 + 6 + 7: Video filter chain
       '-vf', videoFilterChain,
-      // Layer 2: Audio filter chain
-      '-af', audioFilterChain,
+      // Layer 2 + 8: Audio filter complex (mix original with brown noise)
+      '-filter_complex', `[0:a]${audioFilterChain}[a1];[a1][1:a]amix=inputs=2:duration=first[aout]`,
+      '-map', '0:v',
+      '-map', '[aout]',
       // Layer 4: Randomized encoding parameters
       '-r', params.frameRate,
       '-c:v', 'libx264',
