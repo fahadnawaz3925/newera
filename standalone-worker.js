@@ -663,7 +663,7 @@ async function processSingleItem(item, targetAccount) {
         '-i', 'anullsrc=r=44100:cl=stereo',
         // Concat intro + main + outro
         '-filter_complex',
-        '[0:v][1:a][2:v][2:a][3:v][4:a]concat=n=3:v=1:a=1[outv][outa]',
+        `[0:v]fps=${params.frameRate}[v0]; [2:v]fps=${params.frameRate}[v1]; [3:v]fps=${params.frameRate}[v2]; [v0][1:a][v1][2:a][v2][4:a]concat=n=3:v=1:a=1[outv][outa]`,
         '-map', '[outv]', '-map', '[outa]',
         '-c:v', 'libx264', '-preset', 'ultrafast', '-profile:v', 'main',
         '-c:a', 'aac', '-b:a', params.audioBitrate,
