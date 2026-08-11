@@ -649,7 +649,7 @@ async function processSingleItem(item, targetAccount) {
         '-y',
         // Input 0: Intro (solid dark frame with text)
         '-f', 'lavfi', '-t', String(introDuration),
-        '-i', `color=c=black:s=1080x1920:r=30,format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2[v]`,
+        '-i', `color=c=black:s=1080x1920:r=30,format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2`,
         // Input 1: Intro silent audio
         '-f', 'lavfi', '-t', String(introDuration),
         '-i', 'anullsrc=r=44100:cl=stereo',
@@ -657,7 +657,7 @@ async function processSingleItem(item, targetAccount) {
         '-i', outputPath,
         // Input 3: Outro (solid dark frame with text)
         '-f', 'lavfi', '-t', String(outroDuration),
-        '-i', `color=c=black:s=1080x1920:r=30,format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3[v]`,
+        '-i', `color=c=black:s=1080x1920:r=30,format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3`,
         // Input 4: Outro silent audio
         '-f', 'lavfi', '-t', String(outroDuration),
         '-i', 'anullsrc=r=44100:cl=stereo',
@@ -689,9 +689,9 @@ async function processSingleItem(item, targetAccount) {
 
     // ─── Random Thumbnail Extraction from Transformed Video ───
     console.log(`🖼️ Extracting random thumbnail from transformed video (for anti-copyright shield)...`);
+    let randomTimeStr = '1.5';
     try {
       // Pick a random time between 15% and 80% of video duration (excluding intro/outro)
-      let randomTimeStr = '1.5';
       try {
         const probeRes = await execa('ffprobe', [
           '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', outputPath
@@ -905,8 +905,8 @@ async function startDaemon() {
           // No rate limit file, proceed
         }
 
-        // Thumbnail Hydration Pass (Check 1 pending item missing thumbnail)
-        let hydrateQuery = supabase.from('reels_queue').select('id, url').eq('status', 'PENDING').is('thumbnail_url', null).limit(1);
+        // Thumbnail Hydration Pass (Check 1 item missing thumbnail)
+        let hydrateQuery = supabase.from('reels_queue').select('id, url').is('thumbnail_url', null).limit(1);
         if (targetAccount === 'account1') {
           hydrateQuery = hydrateQuery.or('account_id.eq.account1,account_id.is.null');
         } else {
