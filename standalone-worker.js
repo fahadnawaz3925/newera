@@ -40,6 +40,17 @@ const ytDlpBinary = fs.existsSync(localYtDlp) ? localYtDlp : 'yt-dlp';
 // Sleep helper
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// Proxy Rotation Pool
+const IG_PROXIES = process.env.IG_PROXIES ? process.env.IG_PROXIES.split(',').map(p => p.trim()).filter(Boolean) : [];
+let currentProxyIndex = 0;
+
+function getNextProxy() {
+  if (IG_PROXIES.length === 0) return process.env.IG_PROXY || null;
+  const proxy = IG_PROXIES[currentProxyIndex];
+  currentProxyIndex = (currentProxyIndex + 1) % IG_PROXIES.length;
+  return proxy;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 🛡️ ANTI-COPYRIGHT SHIELD — Randomization Engine
 // ═══════════════════════════════════════════════════════════════
@@ -374,30 +385,67 @@ async function processSingleItem(item, targetAccount) {
 
     } else {
       console.log(`Downloading video ${item.url} via yt-dlp (best quality)...`);
-      const ytDlpOptions = [
-        '-o', tempFileTemplate, 
-        '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best', 
-        '--no-playlist', 
-        '--merge-output-format', 'mp4',
-        '--sleep-requests', '3',
-        '--sleep-interval', '10',
-        '--max-sleep-interval', '30',
-        '--fragment-retries', '5'
-      ];
-      if (cookiePath && item.url.includes('instagram.com')) {
-        ytDlpOptions.push('--cookies', cookiePath);
-      }
-      if (process.env.IG_PROXY) {
-        ytDlpOptions.push('--proxy', process.env.IG_PROXY);
+      let downloadSuccess = false;
+      let lastDownloadError = null;
+
+      // Allow up to 3 proxy rotation retries (or more if many proxies)
+      const maxRetries = Math.max(1, Math.min(3, IG_PROXIES.length || 1));
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const ytDlpOptions = [
+          '-o', tempFileTemplate, 
+          '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best', 
+          '--no-playlist', 
+          '--merge-output-format', 'mp4',
+          '--sleep-requests', '3',
+          '--sleep-interval', '10',
+          '--max-sleep-interval', '30',
+          '--fragment-retries', '5'
+        ];
+
+        if (cookiePath && item.url.includes('instagram.com')) {
+          ytDlpOptions.push('--cookies', cookiePath);
+        }
+
+        const proxy = getNextProxy();
+        if (proxy) {
+          // Hide password in logs
+          const safeProxyLog = proxy.includes('@') ? proxy.split('@').pop() : proxy;
+          console.log(`[Attempt ${attempt}/${maxRetries}] Using proxy: ${safeProxyLog}`);
+          ytDlpOptions.push('--proxy', proxy);
+        }
+
+        try {
+          // Extract original metadata for context (with proxy)
+          try {
+            const dumpOpts = ['--dump-json', '--no-playlist', item.url];
+            if (proxy) { dumpOpts.push('--proxy', proxy); }
+            if (cookiePath && item.url.includes('instagram.com')) { dumpOpts.push('--cookies', cookiePath); }
+            const dumpRes = await execa(ytDlpBinary, dumpOpts);
+            if (dumpRes.stdout) videoMetadata = JSON.parse(dumpRes.stdout);
+          } catch (dumpErr) { }
+
+          await execa(ytDlpBinary, [...ytDlpOptions, item.url]);
+          downloadSuccess = true;
+          break; // Success, exit retry loop
+        } catch (err) {
+          lastDownloadError = err;
+          console.warn(`[Attempt ${attempt}/${maxRetries}] Download failed:`, err.message.substring(0, 150));
+          if (err.message.includes('429') || err.message.includes('401') || err.message.includes('blocked')) {
+             if (attempt < maxRetries) {
+               console.log(`IP block detected! Rotating to next proxy and retrying in 5 seconds...`);
+               await sleep(5000);
+             }
+          } else {
+             // If it's not a block, no need to burn through proxies
+             break;
+          }
+        }
       }
 
-      // Extract original metadata for context
-      try {
-        const dumpRes = await execa(ytDlpBinary, ['--dump-json', '--no-playlist', item.url]);
-        if (dumpRes.stdout) videoMetadata = JSON.parse(dumpRes.stdout);
-      } catch (dumpErr) { }
-
-      await execa(ytDlpBinary, [...ytDlpOptions, item.url]);
+      if (!downloadSuccess) {
+         throw lastDownloadError || new Error('Download failed after proxy rotation');
+      }
 
       const files = fs.readdirSync(tempDir);
       downloadedFile = files.find(f => f.startsWith(fileId) && !f.endsWith('.txt') && !f.endsWith('.json'));
