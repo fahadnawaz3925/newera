@@ -920,10 +920,18 @@ async function startDaemon() {
           console.log(`[${targetAccount}] 🖼️ Hydrating missing thumbnail for ${tItem.id}...`);
           try {
             const ytDlpThumbOpts = ['--dump-json', '--no-playlist', '--no-warnings'];
-            if (process.env.IG_PROXY) ytDlpThumbOpts.push('--proxy', process.env.IG_PROXY);
-            // Optional: try with cookie if standard dump fails, but safer without it first
+            const proxyToUse = getNextProxy();
+            if (proxyToUse) ytDlpThumbOpts.push('--proxy', proxyToUse);
+            
+            let tmpCookie = null;
+            if (process.env.IG_SESSION_ID && tItem.url.includes('instagram.com')) {
+              tmpCookie = path.join(os.tmpdir(), `cookie_thumb_${tItem.id}.txt`);
+              fs.writeFileSync(tmpCookie, `# Netscape HTTP Cookie File\n.instagram.com\tTRUE\t/\tTRUE\t2000000000\tsessionid\t${process.env.IG_SESSION_ID}\n`);
+              ytDlpThumbOpts.push('--cookies', tmpCookie);
+            }
             
             const dumpRes = await execa(ytDlpBinary, [...ytDlpThumbOpts, tItem.url]);
+            if (tmpCookie) try { fs.unlinkSync(tmpCookie); } catch(e){}
             const meta = JSON.parse(dumpRes.stdout);
             if (meta.thumbnail) {
               await supabase.from('reels_queue').update({ thumbnail_url: meta.thumbnail }).eq('id', tItem.id);
