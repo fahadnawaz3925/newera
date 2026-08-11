@@ -31,8 +31,7 @@ const S3 = new S3Client({
 });
 
 // Binary path resolvers
-const ffmpegStatic = require('ffmpeg-static');
-const ffmpegBinary = (ffmpegStatic && fs.existsSync(ffmpegStatic)) ? ffmpegStatic : 'ffmpeg';
+const ffmpegBinary = 'ffmpeg'; // Force system ffmpeg to fix drawtext missing library in ffmpeg-static
 
 const localYtDlp = path.join(__dirname, 'node_modules', 'yt-dlp-exec', 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
 const ytDlpBinary = fs.existsSync(localYtDlp) ? localYtDlp : 'yt-dlp';
