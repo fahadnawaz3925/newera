@@ -122,9 +122,9 @@ function generateAntiCopyrightParams(targetAccount) {
   const gopSize = randInt(18, 30);
 
   // Layer 4: Encoding diversification (Instagram-optimized quality)
-  const preset = randPick(['fast', 'medium']);
-  const videoBitrate = randPick(['12M', '13M', '14M', '15M', '16M']);
-  const maxRate = randPick(['16M', '17M', '18M', '19M', '20M']);
+  const preset = randPick(['ultrafast', 'superfast', 'veryfast']);
+  const videoBitrate = randPick(['6M', '7M', '8M']);
+  const maxRate = randPick(['8M', '10M']);
   const audioBitrate = randPick(['128k', '144k', '160k', '192k']);
   const profile = randPick(['high', 'main']);
   const tune = 'film';   // Better quality for real-world footage
