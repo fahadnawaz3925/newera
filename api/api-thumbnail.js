@@ -29,7 +29,23 @@ async function handleThumbnail(url) {
       };
     }
 
-    // 3. Fallback html scraper for other URLs
+    // 3. Instagram oEmbed fast scrape (returns JSON with thumbnail_url)
+    if (url.includes('instagram.com')) {
+      try {
+        const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
+        const res = await fetch(oembedUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.thumbnail_url) {
+            return { statusCode: 302, headers: { Location: data.thumbnail_url, 'Cache-Control': 'public, max-age=86400' } };
+          }
+        }
+      } catch (oembedErr) {
+        console.warn('oEmbed fallback error:', oembedErr.message);
+      }
+    }
+
+    // 4. Fallback html scraper for other URLs
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
