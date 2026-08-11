@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="tracker-url-container">
                 <input type="checkbox" class="pending-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #ef4444; margin-right: 10px; flex-shrink: 0;" />
                 <span class="drag-handle" title="Drag to reorder">☰</span>
-                <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80';" />
+                <img src="${item.thumbnail_url || `/api/api-thumbnail?url=${encodeURIComponent(item.url)}`}" class="queue-thumbnail" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80';" />
                 <span class="tracker-url" title="${item.url}">${item.url}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -602,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tracker-header">
               <div class="tracker-url-container">
                 <input type="checkbox" class="activity-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #ef4444; margin-right: 12px; flex-shrink: 0;" />
-                <img src="/api/api-thumbnail?url=${encodeURIComponent(item.url)}" class="queue-thumbnail" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80';" />
+                <img src="${item.thumbnail_url || `/api/api-thumbnail?url=${encodeURIComponent(item.url)}`}" class="queue-thumbnail" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80';" />
                 <span class="tracker-url" title="${item.url}">${item.url}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
