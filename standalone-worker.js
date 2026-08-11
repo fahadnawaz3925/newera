@@ -122,7 +122,7 @@ function generateAntiCopyrightParams(targetAccount) {
   const gopSize = randInt(18, 30);
 
   // Layer 4: Encoding diversification (Instagram-optimized quality)
-  const preset = randPick(['ultrafast', 'superfast', 'veryfast']);
+  const preset = 'ultrafast'; // Force ultrafast because Oracle Cloud VM gets heavily throttled on any other preset
   const videoBitrate = randPick(['6M', '7M', '8M']);
   const maxRate = randPick(['8M', '10M']);
   const audioBitrate = randPick(['128k', '144k', '160k', '192k']);
