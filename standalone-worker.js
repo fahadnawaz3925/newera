@@ -104,7 +104,7 @@ function generateAntiCopyrightParams(targetAccount) {
   const saturation = randFloat(1.01, 1.05).toFixed(3);
   const gamma = randFloat(1.005, 1.02).toFixed(4);
   const noiseStrength = randFloat(1.0, 2.5).toFixed(2);
-  const doMirror = true; // 100% mirroring is the most effective way to defeat spatial hashing
+  const doMirror = targetAccount === 'account2'; // 100% mirroring ONLY for account2 (Buffed Boujee). Account 1 (Islamic) has Arabic text which cannot be flipped!
   const frameRate = randPick(['29.97', '30', '30.03']);
 
   // Layer 2: Randomized audio transforms
@@ -505,6 +505,13 @@ async function processSingleItem(item, targetAccount) {
 
     // Layer 9: Subtle hue shift (rotates colors by 1-3 degrees, imperceptible but defeats color histograms)
     vfParts.push(`hue=h=${randInt(1, 3)}`);
+
+    // Layer 10: Subtle Vignette (darkens corners slightly, completely alters edge pixel matrix)
+    vfParts.push(`vignette=PI/4+PI/${randInt(15, 30)}`);
+
+    // Layer 11: Invisible moving text hash (moves across the screen at 1% opacity, invisible to humans, completely breaks structural similarity algorithms)
+    const invisibleHash = Math.random().toString(36).substring(2, 10);
+    vfParts.push(`drawtext=text='${invisibleHash}':fontsize=50:fontcolor=white@0.01:x=w*t/15:y=h*t/20`);
 
     // Force yuv420p output (colorbalance converts to yuv444p which breaks main/high H.264 profiles)
     vfParts.push('format=yuv420p');
