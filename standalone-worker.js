@@ -477,13 +477,12 @@ async function processSingleItem(item, targetAccount) {
 
     // Layer 1: Randomized crop
     vfParts.push(`crop=iw*${params.cropX}:ih*${params.cropY}`);
+    vfParts.push('scale=1080:1920:force_original_aspect_ratio=decrease');
+    vfParts.push('pad=1080:1920:(ow-iw)/2:(oh-ih)/2');
+    vfParts.push('setsar=1');
 
     // Layer 1: Random horizontal mirror (50% chance)
     if (params.doMirror) vfParts.push('hflip');
-
-    // Scale to 1080x1920
-    vfParts.push('scale=1080:1920:force_original_aspect_ratio=decrease');
-    vfParts.push('pad=1080:1920:(ow-iw)/2:(oh-ih)/2');
 
     // Layer 1.5: Minimal Ken Burns effect (Dynamic Zoom)
     vfParts.push(`zoompan=z='min(pzoom+0.00010,1.05)':d=1:x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':fps=30:s=1080x1920`);
@@ -667,7 +666,7 @@ async function processSingleItem(item, targetAccount) {
         '-y',
         // Input 0: Intro (solid dark frame with text)
         '-f', 'lavfi', '-t', String(introDuration),
-        '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2`,
+        '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2,setsar=1`,
         // Input 1: Intro silent audio
         '-f', 'lavfi', '-t', String(introDuration),
         '-i', 'anullsrc=r=44100:cl=stereo',
@@ -675,7 +674,7 @@ async function processSingleItem(item, targetAccount) {
         '-i', outputPath,
         // Input 3: Outro (solid dark frame with text)
         '-f', 'lavfi', '-t', String(outroDuration),
-        '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3`,
+        '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3,setsar=1`,
         // Input 4: Outro silent audio
         '-f', 'lavfi', '-t', String(outroDuration),
         '-i', 'anullsrc=r=44100:cl=stereo',
