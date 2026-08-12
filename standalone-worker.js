@@ -104,11 +104,11 @@ function generateAntiCopyrightParams(targetAccount) {
   const saturation = randFloat(1.01, 1.05).toFixed(3);
   const gamma = randFloat(1.005, 1.02).toFixed(4);
   const noiseStrength = randFloat(1.0, 2.5).toFixed(2);
-  const doMirror = Math.random() < 0.5;
+  const doMirror = true; // 100% mirroring is the most effective way to defeat spatial hashing
   const frameRate = randPick(['29.97', '30', '30.03']);
 
   // Layer 2: Randomized audio transforms
-  const audioSpeedFactor = randFloat(1.008, 1.02).toFixed(4);
+  const audioSpeedFactor = randFloat(1.02, 1.04).toFixed(4); // 2-4% speed change completely breaks audio temporal hashing
   const audioPitchRate = (44100 * parseFloat(audioSpeedFactor)).toFixed(0);
   const doStereoSwap = Math.random() < 0.5;
   const silenceMs = randInt(50, 200);
@@ -118,7 +118,7 @@ function generateAntiCopyrightParams(targetAccount) {
   // Layer 3: Temporal disruption
   const trimStart = randFloat(0.1, 0.5).toFixed(3);
   const trimEnd = randFloat(0.1, 0.5).toFixed(3);
-  const ptsFactor = randFloat(0.99, 1.01).toFixed(4);
+  const ptsFactor = (1 / parseFloat(audioSpeedFactor)).toFixed(4); // Sync video speed with audio speed precisely
   const gopSize = randInt(18, 30);
 
   // Layer 4: Encoding diversification (Instagram-optimized quality)
@@ -502,6 +502,9 @@ async function processSingleItem(item, targetAccount) {
 
     // Layer 6: Branded watermark overlay
     vfParts.push(`drawtext=text='${params.watermarkText}':fontsize=${params.watermarkSize}:fontcolor=white@${params.watermarkOpacity}:x=w-tw-20:y=h-th-20`);
+
+    // Layer 9: Subtle hue shift (rotates colors by 1-3 degrees, imperceptible but defeats color histograms)
+    vfParts.push(`hue=h=${randInt(1, 3)}`);
 
     // Force yuv420p output (colorbalance converts to yuv444p which breaks main/high H.264 profiles)
     vfParts.push('format=yuv420p');
