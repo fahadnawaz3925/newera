@@ -513,7 +513,8 @@ async function processSingleItem(item, targetAccount) {
     const invisibleHash = Math.random().toString(36).substring(2, 10);
     vfParts.push(`drawtext=text='${invisibleHash}':fontsize=50:fontcolor=white@0.01:x=w*t/15:y=h*t/20`);
 
-    // Force yuv420p output (colorbalance converts to yuv444p which breaks main/high H.264 profiles)
+    // Force SAR to 1:1 and yuv420p output (prevents concat errors)
+    vfParts.push('setsar=1');
     vfParts.push('format=yuv420p');
 
     const videoFilterChain = vfParts.join(',');
