@@ -111,7 +111,7 @@ function generateAntiCopyrightParams(targetAccount) {
   const audioSpeedFactor = randFloat(1.02, 1.04).toFixed(4); // 2-4% speed change completely breaks audio temporal hashing
   const audioPitchRate = (44100 * parseFloat(audioSpeedFactor)).toFixed(0);
   const doStereoSwap = Math.random() < 0.5;
-  const silenceMs = randInt(50, 200);
+  const silenceMs = 0; // Disabled: Injecting silence shifts the audio track and completely ruins A/V sync for ASMR!
   const doReverb = Math.random() < 0.4;
   const bgNoiseMix = randFloat(-50, -40).toFixed(1);
 
