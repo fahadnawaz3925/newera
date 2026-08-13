@@ -199,6 +199,8 @@ function generateAntiCopyrightParams(targetAccount) {
     watermarkText, watermarkOpacity, watermarkSize,
     // Layer 7
     colorGrade,
+    // Layer 9
+    lensDistortion, rotAngle,
     // Metadata
     metaTitle, metaArtist, metaComment, metaGenre,
   };
@@ -369,7 +371,11 @@ async function processSingleItem(item, targetAccount) {
     const tempFileTemplate = path.join(tempDir, `${fileId}.%(ext)s`);
 
     let cookiePath = null;
-    if (IG_SESSION_ID) {
+    const persistentCookiePath = path.join(__dirname, `cookies_${targetAccount}.txt`);
+    if (fs.existsSync(persistentCookiePath)) {
+      cookiePath = persistentCookiePath;
+      console.log(`Using persistent master cookie file for ${targetAccount}`);
+    } else if (IG_SESSION_ID) {
       cookiePath = path.join(tempDir, `cookies_${fileId}.txt`);
       const cookieContent = `# Netscape HTTP Cookie File\n.instagram.com\tTRUE\t/\tTRUE\t2000000000\tsessionid\t${IG_SESSION_ID}\n`;
       fs.writeFileSync(cookiePath, cookieContent);
