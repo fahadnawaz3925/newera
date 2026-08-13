@@ -107,17 +107,19 @@ function generateAntiCopyrightParams(targetAccount) {
   const doMirror = targetAccount === 'account2'; // 100% mirroring ONLY for account2 (Buffed Boujee). Account 1 (Islamic) has Arabic text which cannot be flipped!
   const frameRate = randPick(['29.97', '30', '30.03']);
 
-  // Layer 2: Randomized audio transforms
-  const audioSpeedFactor = randFloat(1.02, 1.04).toFixed(4); // 2-4% speed change completely breaks audio temporal hashing
-  const audioPitchRate = (44100 * parseFloat(audioSpeedFactor)).toFixed(0);
-  const doStereoSwap = Math.random() < 0.5;
-  const silenceMs = 0; // Disabled: Injecting silence shifts the audio track and completely ruins A/V sync for ASMR!
-  const doReverb = Math.random() < 0.4;
-  const bgNoiseMix = randFloat(-50, -40).toFixed(1);
+  const isASMR = targetAccount === 'account2';
 
-  // Layer 3: Temporal disruption
-  const trimStart = randFloat(0.1, 0.5).toFixed(3);
-  const trimEnd = randFloat(0.1, 0.5).toFixed(3);
+  // Layer 2: Randomized audio transforms (Disabled for ASMR to preserve pristine sync and sound)
+  const audioSpeedFactor = isASMR ? "1.0000" : randFloat(1.02, 1.04).toFixed(4); // 2-4% speed change completely breaks audio temporal hashing
+  const audioPitchRate = (44100 * parseFloat(audioSpeedFactor)).toFixed(0);
+  const doStereoSwap = isASMR ? false : Math.random() < 0.5;
+  const silenceMs = 0; // Disabled: Injecting silence shifts the audio track and completely ruins A/V sync for ASMR!
+  const doReverb = isASMR ? false : Math.random() < 0.4;
+  const bgNoiseMix = isASMR ? "-99.0" : randFloat(-50, -40).toFixed(1);
+
+  // Layer 3: Temporal disruption (Disabled for ASMR to prevent keyframe seeking desync)
+  const trimStart = isASMR ? "0.000" : randFloat(0.1, 0.5).toFixed(3);
+  const trimEnd = isASMR ? "0.000" : randFloat(0.1, 0.5).toFixed(3);
   const ptsFactor = (1 / parseFloat(audioSpeedFactor)).toFixed(4); // Sync video speed with audio speed precisely
   const gopSize = randInt(18, 30);
 
@@ -521,12 +523,10 @@ async function processSingleItem(item, targetAccount) {
     // --- Build audio filter chain ---
     const afParts = [];
 
-    // Layer 2: Random pitch shift via sample rate manipulation
-    afParts.push(`asetrate=${params.audioPitchRate}`);
-    afParts.push('aresample=44100');
-
-    // Layer 2: Random speed/tempo
-    afParts.push(`atempo=${params.audioSpeedFactor}`);
+    // Layer 2: Random speed/tempo (keeps pitch the same, stays exactly in sync with video PTS)
+    if (params.audioSpeedFactor !== "1.0000") {
+      afParts.push(`atempo=${params.audioSpeedFactor}`);
+    }
 
     // Layer 2: Highpass + lowpass (always applied, prevents DC offset & ultrasonic noise)
     afParts.push('highpass=f=35');
@@ -563,18 +563,19 @@ async function processSingleItem(item, targetAccount) {
 
     // Calculate trim end time
     let trimEndTime = null;
-    if (videoDuration && !isNaN(videoDuration) && videoDuration > 2) {
+    if (videoDuration && !isNaN(videoDuration) && videoDuration > 2 && parseFloat(params.trimEnd) > 0) {
       trimEndTime = (videoDuration - parseFloat(params.trimEnd)).toFixed(3);
     }
 
     // --- Build full FFmpeg command ---
-    const ffmpegArgs = [
-      '-y',
-      '-ss', params.trimStart,                     // Layer 3: Random trim from start
-    ];
+    const ffmpegArgs = [ '-y' ];
+    
+    if (parseFloat(params.trimStart) > 0) {
+      ffmpegArgs.push('-ss', params.trimStart); // Layer 3: Random trim from start
+    }
 
     if (trimEndTime) {
-      ffmpegArgs.push('-to', trimEndTime);          // Layer 3: Random trim from end
+      ffmpegArgs.push('-to', trimEndTime);      // Layer 3: Random trim from end
     }
 
     ffmpegArgs.push(
