@@ -140,11 +140,17 @@ function generateAntiCopyrightParams(targetAccount) {
 
   // Layer 6: Branded overlay
   const watermarkText = targetAccount === 'account2' ? '@buffedboujee' : '@faith.canvas38';
-  const watermarkOpacity = randFloat(0.20, 0.35).toFixed(2);
-  const watermarkSize = randInt(13, 17);
+  const watermarkOpacity = randFloat(0.15, 0.25).toFixed(2);
+  const watermarkSize = randInt(28, 42);
 
   // Layer 7: Color grading
   const colorGrade = randPick(COLOR_GRADES);
+
+  // Layer 9: Geometric Warp (Compression-Aware Adversarial Attack)
+  // Random barrel (positive) or pincushion (negative) distortion between 1% and 3%
+  const lensDistortion = (Math.random() < 0.5 ? 1 : -1) * randFloat(0.010, 0.030).toFixed(3);
+  // Micro-rotation to break symmetry (-0.5 to +0.5 degrees)
+  const rotAngle = randFloat(-0.5, 0.5).toFixed(3);
 
   // Build account-specific content metadata
   let metaTitle, metaArtist, metaComment, metaGenre;
@@ -473,6 +479,7 @@ async function processSingleItem(item, targetAccount) {
     console.log(`  L6 Overlay: ${params.watermarkText} @ ${params.watermarkOpacity} opacity, ${params.watermarkSize}px`);
     console.log(`  L7 Color: ${params.colorGrade}`);
     console.log(`  L8 Dedup: sourceHash=${sourceUrlHash}`);
+    console.log(`  L9 Geometric Warp: lensDistortion(${params.lensDistortion}) rotation(${params.rotAngle}deg)`);
 
     // --- Build video filter chain ---
     const vfParts = [];
@@ -513,6 +520,12 @@ async function processSingleItem(item, targetAccount) {
     // Layer 11: Invisible moving text hash (moves across the screen at 1% opacity, invisible to humans, completely breaks structural similarity algorithms)
     const invisibleHash = Math.random().toString(36).substring(2, 10);
     vfParts.push(`drawtext=text='${invisibleHash}':fontsize=50:fontcolor=white@0.01:x=w*t/15:y=h*t/20`);
+
+    // Layer 9: Geometric Distortion (Compression-Aware Adversarial Warp)
+    // Micro-rotation (breaks X/Y symmetry)
+    vfParts.push(`rotate=${params.rotAngle}*PI/180:c=black`);
+    // Lens Correction (pushes edges radially to shatter perceptual hash grids)
+    vfParts.push(`lenscorrection=k1=${params.lensDistortion}:k2=0.0`);
 
     // Force SAR to 1:1 and yuv420p output (prevents concat errors)
     vfParts.push('setsar=1');
