@@ -152,6 +152,12 @@ function generateAntiCopyrightParams(targetAccount) {
   // Micro-rotation to break symmetry (-0.5 to +0.5 degrees)
   const rotAngle = randFloat(-0.5, 0.5).toFixed(3);
 
+  // Layer 10: Advanced Audio Scrambling
+  // Phaser is fantastic for scrambling fingerprints, but ruins ASMR. We disable it for account2.
+  const doPhaser = targetAccount === 'account2' ? false : Math.random() < 0.7; // 70% chance for account1
+  // Smooth fade-in to prevent audio clipping
+  const fadeDuration = randFloat(0.2, 0.4).toFixed(2);
+
   // Build account-specific content metadata
   let metaTitle, metaArtist, metaComment, metaGenre;
   if (targetAccount === 'account2') {
@@ -201,6 +207,8 @@ function generateAntiCopyrightParams(targetAccount) {
     colorGrade,
     // Layer 9
     lensDistortion, rotAngle,
+    // Layer 10
+    doPhaser, fadeDuration,
     // Metadata
     metaTitle, metaArtist, metaComment, metaGenre,
   };
@@ -486,6 +494,7 @@ async function processSingleItem(item, targetAccount) {
     console.log(`  L7 Color: ${params.colorGrade}`);
     console.log(`  L8 Dedup: sourceHash=${sourceUrlHash}`);
     console.log(`  L9 Geometric Warp: lensDistortion(${params.lensDistortion}) rotation(${params.rotAngle}deg)`);
+    console.log(`  L10 Audio Scramble: phaser(${params.doPhaser}) fade(${params.fadeDuration}s)`);
 
     // --- Build video filter chain ---
     const vfParts = [];
@@ -567,6 +576,14 @@ async function processSingleItem(item, targetAccount) {
     if (params.doReverb) {
       afParts.push(`aecho=0.8:0.88:${randInt(4, 8)}:${randFloat(0.25, 0.45).toFixed(2)}`);
     }
+
+    // Layer 10: Advanced Audio Scrambling (Phaser)
+    if (params.doPhaser) {
+      afParts.push(`aphaser=in_gain=0.4:out_gain=0.6:delay=${randFloat(3, 6).toFixed(1)}:decay=${randFloat(0.1, 0.3).toFixed(2)}:speed=${randFloat(0.4, 0.7).toFixed(2)}`);
+    }
+
+    // Layer 10: Smooth fade-in
+    afParts.push(`afade=t=in:st=0:d=${params.fadeDuration}`);
 
     const audioFilterChain = afParts.join(',');
 
