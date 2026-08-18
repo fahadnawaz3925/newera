@@ -579,7 +579,7 @@ async function processSingleItem(item, targetAccount) {
 
     // Layer 10: Advanced Audio Scrambling (Phaser)
     if (params.doPhaser) {
-      afParts.push(`aphaser=in_gain=0.4:out_gain=0.6:delay=${randFloat(3, 6).toFixed(1)}:decay=${randFloat(0.1, 0.3).toFixed(2)}:speed=${randFloat(0.4, 0.7).toFixed(2)}`);
+      afParts.push(`aphaser=in_gain=0.4:out_gain=0.6:delay=${randFloat(3, 5).toFixed(1)}:decay=${randFloat(0.1, 0.3).toFixed(2)}:speed=${randFloat(0.4, 0.7).toFixed(2)}`);
     }
 
     // Layer 10: Smooth fade-in
