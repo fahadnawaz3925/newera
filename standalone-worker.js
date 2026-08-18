@@ -284,7 +284,7 @@ Do NOT use markdown, code blocks, or header symbols (###). Write plain text only
 
   if (geminiKey) {
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const modelsToTry = ['gemini-3.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.6-flash'];
 
     for (const modelName of modelsToTry) {
       for (let attempt = 1; attempt <= 2; attempt++) {
@@ -990,9 +990,13 @@ async function startDaemon() {
             if (meta.thumbnail) {
               await supabase.from('reels_queue').update({ thumbnail_url: meta.thumbnail }).eq('id', tItem.id);
               console.log(`   ✅ Thumbnail hydrated.`);
+            } else {
+              await supabase.from('reels_queue').update({ thumbnail_url: 'FAILED' }).eq('id', tItem.id);
+              console.log(`   ❌ Thumbnail not found in metadata.`);
             }
           } catch (e) {
-            // Ignore extraction failures so it doesn't block the queue
+            await supabase.from('reels_queue').update({ thumbnail_url: 'FAILED' }).eq('id', tItem.id);
+            console.log(`   ❌ Thumbnail hydration failed: ${e.message.split('\n')[0]}`);
           }
         }
 
