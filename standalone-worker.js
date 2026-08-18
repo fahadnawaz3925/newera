@@ -480,11 +480,11 @@ async function processSingleItem(item, targetAccount) {
     // ─── Thumbnail Extraction moved to post-transformation to ensure randomness and copyright shielding ───
 
     // ═══════════════════════════════════════════════════════════════
-    // 🛡️ ANTI-COPYRIGHT SHIELD — 8-Layer Transform Pipeline
+    // 🛡️ ANTI-COPYRIGHT SHIELD — 10-Layer Transform Pipeline
     // ═══════════════════════════════════════════════════════════════
     const params = generateAntiCopyrightParams(targetAccount);
 
-    console.log(`\n🛡️ Anti-Copyright Shield v2.0 — 8-Layer Pipeline for ${targetAccount}`);
+    console.log(`\n🛡️ Anti-Copyright Shield v2.0 — 10-Layer Pipeline for ${targetAccount}`);
     console.log(`  L1 Visual: crop(${params.cropX}x${params.cropY}) bright(${params.brightness}) contrast(${params.contrast}) sat(${params.saturation}) gamma(${params.gamma}) noise(${params.noiseStrength}) mirror(${params.doMirror}) fps(${params.frameRate})`);
     console.log(`  L2 Audio: speed(${params.audioSpeedFactor}) stereoSwap(${params.doStereoSwap}) silence(${params.silenceMs}ms) reverb(${params.doReverb}) bgNoise(${params.bgNoiseMix}dB)`);
     console.log(`  L3 Temporal: trimStart(${params.trimStart}s) trimEnd(${params.trimEnd}s) pts(${params.ptsFactor}) gop(${params.gopSize})`);
@@ -509,13 +509,14 @@ async function processSingleItem(item, targetAccount) {
     if (params.doMirror) vfParts.push('hflip');
 
     // Layer 1.5: Minimal Ken Burns effect (Dynamic Zoom)
-    vfParts.push(`zoompan=z='min(pzoom+0.00010,1.05)':d=1:x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':fps=30:s=1080x1920`);
+    // DISABLED for performance: zoompan is too slow on low-tier VMs.
+    // vfParts.push(`zoompan=z='min(pzoom+0.00010,1.05)':d=1:x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':fps=30:s=1080x1920`);
 
     // Layer 1: Randomized brightness/contrast/saturation/gamma
     vfParts.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
 
-    // Layer 1: Randomized noise injection
-    vfParts.push(`noise=alls=${params.noiseStrength}:allf=t+u`);
+    // Layer 1: Randomized noise injection (spatial only for speed)
+    vfParts.push(`noise=alls=${params.noiseStrength}:allf=u`);
 
     // Layer 7: Random color grading
     vfParts.push(params.colorGrade);
@@ -539,8 +540,8 @@ async function processSingleItem(item, targetAccount) {
     // Layer 9: Geometric Distortion (Compression-Aware Adversarial Warp)
     // Micro-rotation (breaks X/Y symmetry)
     vfParts.push(`rotate=${params.rotAngle}*PI/180:c=black`);
-    // Lens Correction (pushes edges radially to shatter perceptual hash grids)
-    vfParts.push(`lenscorrection=k1=${params.lensDistortion}:k2=0.0`);
+    // Lens Correction (DISABLED for performance: incredibly slow pixel mapping)
+    // vfParts.push(`lenscorrection=k1=${params.lensDistortion}:k2=0.0`);
 
     // Force SAR to 1:1 and yuv420p output (prevents concat errors)
     vfParts.push('setsar=1');
@@ -739,7 +740,7 @@ async function processSingleItem(item, targetAccount) {
       fs.utimesSync(outputPath, now, now);
     } catch (utimeErr) { }
 
-    console.log(`  ✅ 8-Layer Anti-Copyright Shield + Quality Upgrades applied successfully!`);
+    console.log(`  ✅ 10-Layer Anti-Copyright Shield + Quality Upgrades applied successfully!`);
 
     // ─── Random Thumbnail Extraction from Transformed Video ───
     console.log(`🖼️ Extracting random thumbnail from transformed video (for anti-copyright shield)...`);
