@@ -139,7 +139,7 @@ function generateAntiCopyrightParams(targetAccount) {
   const creationTime = new Date(Date.now() - hoursAgo * 3600 * 1000).toISOString();
 
   // Layer 6: Branded overlay
-  const watermarkText = targetAccount === 'account2' ? '@buffedboujee' : '@faith.canvas38';
+  const watermarkText = targetAccount === 'account2' ? '@buffedboujee' : '@faith.canvas.99';
   const watermarkOpacity = randFloat(0.15, 0.25).toFixed(2);
   const watermarkSize = randInt(28, 42);
 
@@ -181,7 +181,7 @@ function generateAntiCopyrightParams(targetAccount) {
       'Beautiful Quran & Islamic Wisdom | Faith Canvas',
       'Islamic Motivation & Hadith | Faith Canvas',
     ]);
-    metaArtist = 'faith.canvas38';
+    metaArtist = 'faith.canvas.99';
     metaComment = randPick([
       'Islamic Reminders, Quran, Sunnah, Deen Over Dunya, Taqwa, Dua, Dhikr, Hadith',
       'Quran Recitation, Islamic Wisdom, Deen, Sunnah, Taqwa, Daily Reminders',
@@ -262,20 +262,20 @@ STRUCTURE:
 
 Do NOT use markdown, code blocks, or header symbols (###). Write plain text only.`;
 
-  const promptAccount1 = `You are an expert viral Instagram Reel caption writer for @faith.canvas38 — an Islamic Reminders & Quran page.
+  const promptAccount1 = `You are an expert viral Instagram Reel caption writer for @faith.canvas.99 — an Islamic Reminders & Quran page.
 ${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
 Analyze this video's visual frame carefully and write a beautiful, heartfelt caption tailored to THIS specific video's Islamic topic.
 
 RULES:
 - NEVER use any selling, promotional, or commercial language. We are NOT selling anything.
 - NEVER mention products, links, courses, "DM us", or anything transactional.
-- The ONLY call to action allowed is: "Follow @faith.canvas38 for daily reminders 🤲🕊️"
+- The ONLY call to action allowed is: "Follow @faith.canvas.99 for daily reminders 🤲🕊️"
 - Keep it sincere, warm, and spiritually uplifting — like a brother/sister sharing a reminder from the heart.
 
 STRUCTURE:
 1. An emotional hook that makes people pause (e.g., "This verse hit different today 📖💔", "Save this for your lowest days 🤲", "SubhanAllah, listen to this... 🕊️✨", "A reminder your soul needed right now 💚").
 2. 2-3 sentences of heartfelt reflection related to THIS video's specific topic — connect it to daily life, struggles, gratitude, or closeness to Allah. Reference the specific Quran verse, hadith, or Islamic concept if visible/audible in the video.
-3. CTA: "Follow @faith.canvas38 for daily reminders 🤲🕊️"
+3. CTA: "Follow @faith.canvas.99 for daily reminders 🤲🕊️"
 4. 6-8 hashtags mixing trending & niche: #Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa #Hadith
 
 Do NOT use markdown, code blocks, or header symbols (###). Write plain text only.`;
@@ -321,7 +321,7 @@ Do NOT use markdown, code blocks, or header symbols (###). Write plain text only
   } else {
     const titleLine = videoTitleClean ? `✨ ${videoTitleClean}` : `A reminder your soul needed right now 🤲💚`;
     const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `In the quiet moments of life, turn your heart to Allah. He is closer to you than you think. Trust His plan, even when the path feels unclear.`;
-    return `${titleLine}\n\n${descLine}\n\nFollow @faith.canvas38 for daily reminders 🤲🕊️\n\n#Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa`;
+    return `${titleLine}\n\n${descLine}\n\nFollow @faith.canvas.99 for daily reminders 🤲🕊️\n\n#Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa`;
   }
 }
 
@@ -693,8 +693,8 @@ async function processSingleItem(item, targetAccount) {
         outroText = 'Follow @buffedboujee for more';
         accentColor = '#D4A574';
       } else {
-        introText = '@faith.canvas38';
-        outroText = 'Follow @faith.canvas38 for daily reminders';
+        introText = '@faith.canvas.99';
+        outroText = 'Follow @faith.canvas.99 for daily reminders';
         accentColor = '#2E7D32';
       }
 
