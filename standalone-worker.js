@@ -104,7 +104,7 @@ function generateAntiCopyrightParams(targetAccount) {
   const saturation = randFloat(1.01, 1.05).toFixed(3);
   const gamma = randFloat(1.005, 1.02).toFixed(4);
   const noiseStrength = randFloat(1.0, 2.5).toFixed(2);
-  const doMirror = targetAccount === 'account2'; // 100% mirroring ONLY for account2 (Buffed Boujee). Account 1 (Islamic) has Arabic text which cannot be flipped!
+  const doMirror = targetAccount === 'account2' || targetAccount === 'account3'; // Mirroring allowed for pets and ASMR (no text)
   const frameRate = randPick(['29.97', '30', '30.03']);
 
   const isASMR = targetAccount === 'account2';
@@ -139,7 +139,10 @@ function generateAntiCopyrightParams(targetAccount) {
   const creationTime = new Date(Date.now() - hoursAgo * 3600 * 1000).toISOString();
 
   // Layer 6: Branded overlay
-  const watermarkText = targetAccount === 'account2' ? '@buffedboujee' : '@faith.canvas.99';
+  let watermarkText = '';
+  if (targetAccount === 'account2') watermarkText = '@buffedboujee';
+  else if (targetAccount === 'account3') watermarkText = '@house.of.paws38';
+  else watermarkText = '@faith.canvas.99';
   const watermarkOpacity = randFloat(0.15, 0.25).toFixed(2);
   const watermarkSize = randInt(28, 42);
 
@@ -154,7 +157,7 @@ function generateAntiCopyrightParams(targetAccount) {
 
   // Layer 10: Advanced Audio Scrambling
   // Phaser is fantastic for scrambling fingerprints, but ruins ASMR. We disable it for account2.
-  const doPhaser = targetAccount === 'account2' ? false : Math.random() < 0.7; // 70% chance for account1
+  const doPhaser = targetAccount === 'account1' ? Math.random() < 0.7 : false; // 70% chance for account1
   // Smooth fade-in to prevent audio clipping
   const fadeDuration = randFloat(0.2, 0.4).toFixed(2);
 
@@ -174,6 +177,20 @@ function generateAntiCopyrightParams(targetAccount) {
       'Leather Shoe ASMR, Mirror Shine Polish, Oddly Satisfying, Buffed & Boujee',
     ]);
     metaGenre = 'ASMR / How-to & Style';
+  } else if (targetAccount === 'account3') {
+    metaTitle = randPick([
+      'Cute Dogs & Funny Pets | House of Paws',
+      'Hilarious Animal Moments | House of Paws',
+      'Cute Puppies & Kittens | House of Paws',
+      'Daily Pet Dose | House of Paws',
+    ]);
+    metaArtist = 'house.of.paws38';
+    metaComment = randPick([
+      'Cute pets, dogs, puppies, funny animals, house of paws',
+      'Funny dogs, cute cats, adorable pets, animal videos',
+      'Best pet videos, funny dog moments, cute puppies',
+    ]);
+    metaGenre = 'Pets & Animals';
   } else {
     metaTitle = randPick([
       'Islamic Reminders & Quran Recitation | Faith Canvas',
@@ -280,7 +297,27 @@ STRUCTURE:
 
 Do NOT use markdown, code blocks, or header symbols (###). Write plain text only.`;
 
-  const prompt = targetAccount === 'account2' ? promptAccount2 : promptAccount1;
+  const promptAccount3 = `You are an expert viral Instagram Reel caption writer for @house.of.paws38 — a Cute Pets & Animals page.
+${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
+Analyze this video's visual frame carefully and write a caption that feels highly engaging and tailored to THIS specific pet video.
+
+RULES:
+- NEVER use any selling, promotional, or commercial language. We are NOT selling anything.
+- The ONLY call to action allowed is: "Follow @house.of.paws38 for your daily dose of cuteness 🐾🐶"
+- Keep it light, fun, and conversational.
+
+STRUCTURE:
+1. A short, funny, or cute hook line (e.g., "The way he looked at the camera 🥺", "I can't stop laughing at this 😂", "Wait for the end... 🐶").
+2. 2-3 sentences describing the cute or funny pet moment in THIS specific video.
+3. CTA: "Follow @house.of.paws38 for your daily dose of cuteness 🐾🐶"
+4. 6-8 hashtags mixing trending & niche: #DogsOfInstagram #CutePets #FunnyDogs #DogLovers #PuppyLove #PetVideos #HouseOfPaws
+
+Do NOT use markdown, code blocks, or header symbols (###). Write plain text only.`;
+
+  let prompt;
+  if (targetAccount === 'account2') prompt = promptAccount2;
+  else if (targetAccount === 'account3') prompt = promptAccount3;
+  else prompt = promptAccount1;
 
   if (geminiKey) {
     const genAI = new GoogleGenerativeAI(geminiKey);
@@ -318,6 +355,10 @@ Do NOT use markdown, code blocks, or header symbols (###). Write plain text only
     const titleLine = videoTitleClean ? `👞✨ ${videoTitleClean}` : `Turn your sound UP for this 🎧🔥`;
     const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `Watch this satisfying transformation — worn leather brought back to a gorgeous mirror shine. The sounds are everything 🤌`;
     return `${titleLine}\n\n${descLine}\n\nFollow @buffedboujee for more satisfying content 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning`;
+  } else if (targetAccount === 'account3') {
+    const titleLine = videoTitleClean ? `🐶 ${videoTitleClean}` : `I can't stop watching this 😂🥺`;
+    const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `Watch this adorable moment! We literally can't get enough of this cuteness. Tag a friend who needs to see this!`;
+    return `${titleLine}\n\n${descLine}\n\nFollow @house.of.paws38 for your daily dose of cuteness 🐾🐶\n\n#DogsOfInstagram #CutePets #FunnyDogs #DogLovers #PuppyLove #PetVideos #HouseOfPaws`;
   } else {
     const titleLine = videoTitleClean ? `✨ ${videoTitleClean}` : `A reminder your soul needed right now 🤲💚`;
     const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `In the quiet moments of life, turn your heart to Allah. He is closer to you than you think. Trust His plan, even when the path feels unclear.`;
@@ -329,7 +370,11 @@ Do NOT use markdown, code blocks, or header symbols (###). Write plain text only
 async function processSingleItem(item, targetAccount) {
   let IG_BUSINESS_ACCOUNT_ID, PAGE_ACCESS_TOKEN, IG_SESSION_ID;
 
-  if (targetAccount === 'account2') {
+  if (targetAccount === 'account3') {
+    IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_3;
+    PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_3;
+    IG_SESSION_ID = process.env.IG_SESSION_ID_3;
+  } else if (targetAccount === 'account2') {
     IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_2;
     PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_2;
     IG_SESSION_ID = process.env.IG_SESSION_ID_2;
@@ -538,8 +583,8 @@ async function processSingleItem(item, targetAccount) {
     vfParts.push(`drawtext=text='${invisibleHash}':fontsize=50:fontcolor=white@0.01:x=w*t/15:y=h*t/20`);
 
     // Layer 9: Geometric Distortion (Compression-Aware Adversarial Warp)
-    // Micro-rotation (breaks X/Y symmetry)
-    vfParts.push(`rotate=${params.rotAngle}*PI/180:c=black`);
+    // Micro-rotation (breaks X/Y symmetry). ow/oh forced to 1080x1920 to prevent aspect ratio corruption!
+    vfParts.push(`rotate=${params.rotAngle}*PI/180:c=black:ow=1080:oh=1920`);
     // Lens Correction (DISABLED for performance: incredibly slow pixel mapping)
     // vfParts.push(`lenscorrection=k1=${params.lensDistortion}:k2=0.0`);
 
@@ -780,11 +825,11 @@ async function processSingleItem(item, targetAccount) {
     const coverName = `${fileId}_cover.jpg`;
 
     console.log(`Uploading transformed video to R2 (${uploadName})...`);
-    const fileStream = fs.createReadStream(outputPath);
+    const fileBuffer = fs.readFileSync(outputPath);
     const putObjectCmd = new PutObjectCommand({
       Bucket: bucketName,
       Key: uploadName,
-      Body: fileStream,
+      Body: fileBuffer,
       ContentType: 'video/mp4',
     });
     await S3.send(putObjectCmd);
@@ -826,10 +871,6 @@ async function processSingleItem(item, targetAccount) {
       thumb_offset: thumbOffsetMs,
       access_token: PAGE_ACCESS_TOKEN
     };
-
-    if (publicCoverUrl) {
-      metaPayload.cover_url = publicCoverUrl;
-    }
 
     // Log the exact caption and thumbnail config being sent
     console.log(`📝 AI Caption (first 150 chars):\n${caption.substring(0, 150)}...`);
@@ -933,7 +974,7 @@ async function startDaemon() {
   console.log(`🚀 Standalone 24/7 Reel Auto-Poster Daemon Started`);
   console.log(`======================================================\n`);
 
-  const supportedAccounts = ['account1', 'account2'];
+  const supportedAccounts = ['account1', 'account2', 'account3'];
 
   // Track last log time per account to avoid spamming "waiting" logs
   const lastWaitLog = {};
