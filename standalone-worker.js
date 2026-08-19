@@ -411,7 +411,22 @@ async function processSingleItem(item, targetAccount) {
     return;
   }
 
-  await supabase.from('reels_queue').update({ status: 'PROCESSING', error_log: null, source_hash: sourceUrlHash }).eq('id', item.id);
+  const { data: updateData, error: updateError } = await supabase
+    .from('reels_queue')
+    .update({ 
+      status: 'PROCESSING', 
+      error_log: null, 
+      source_hash: sourceUrlHash,
+      account_id: targetAccount // Assign to this account formally (in case it was null)
+    })
+    .eq('id', item.id)
+    .eq('status', 'PENDING')
+    .select();
+
+  if (updateError || !updateData || updateData.length === 0) {
+    console.log(`⚠️ Item ${item.id} was already grabbed by another worker. Skipping.`);
+    return;
+  }
 
   let fileId;
   let rawUploadStoragePath = null;
@@ -576,7 +591,9 @@ async function processSingleItem(item, targetAccount) {
     vfParts.push(`hue=h=${randInt(1, 3)}`);
 
     // Layer 10: Subtle Vignette (darkens corners slightly, completely alters edge pixel matrix)
-    vfParts.push(`vignette=PI/4+PI/${randInt(15, 30)}`);
+    if (targetAccount !== 'account3') {
+      vfParts.push(`vignette=PI/4+PI/${randInt(15, 30)}`);
+    }
 
     // Layer 11: Invisible moving text hash (moves across the screen at 1% opacity, invisible to humans, completely breaks structural similarity algorithms)
     const invisibleHash = Math.random().toString(36).substring(2, 10);
@@ -738,6 +755,10 @@ async function processSingleItem(item, targetAccount) {
         introText = '@buffedboujee';
         outroText = 'Follow @buffedboujee for more';
         accentColor = '#D4A574';
+      } else if (targetAccount === 'account3') {
+        introText = '@house.of.paws38';
+        outroText = 'Follow @house.of.paws38 for your daily dose of cuteness';
+        accentColor = '#FFB6C1';
       } else {
         introText = '@faith.canvas.99';
         outroText = 'Follow @faith.canvas.99 for daily reminders';
