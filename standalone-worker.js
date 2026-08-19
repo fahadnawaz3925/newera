@@ -104,7 +104,7 @@ function generateAntiCopyrightParams(targetAccount) {
   const saturation = randFloat(1.01, 1.05).toFixed(3);
   const gamma = randFloat(1.005, 1.02).toFixed(4);
   const noiseStrength = randFloat(1.0, 2.5).toFixed(2);
-  const doMirror = targetAccount === 'account2' || targetAccount === 'account3'; // Mirroring allowed for pets and ASMR (no text)
+  const doMirror = targetAccount === 'account2'; // Mirroring allowed for ASMR (no text)
   const frameRate = randPick(['29.97', '30', '30.03']);
 
   const isASMR = targetAccount === 'account2';
