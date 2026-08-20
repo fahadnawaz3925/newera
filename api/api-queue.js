@@ -40,25 +40,39 @@ const handler = async (event, context) => {
       if (error) throw error;
 
       let lastPublished = 0;
+      let nextScheduled = 0;
       
       try {
         if (S3) {
-          const command = new GetObjectCommand({ Bucket: bucketName, Key: `last_published_${accountId}.txt` });
-          const response = await S3.send(command);
-          const str = await response.Body.transformToString();
-          lastPublished = parseInt(str);
+          try {
+            const command = new GetObjectCommand({ Bucket: bucketName, Key: `last_published_${accountId}.txt` });
+            const response = await S3.send(command);
+            const str = await response.Body.transformToString();
+            lastPublished = parseInt(str, 10);
+          } catch (e) {}
+
+          try {
+            const schedCmd = new GetObjectCommand({ Bucket: bucketName, Key: `next_scheduled_${accountId}.txt` });
+            const schedRes = await S3.send(schedCmd);
+            const schedStr = await schedRes.Body.transformToString();
+            nextScheduled = parseInt(schedStr, 10);
+          } catch (e) {}
         } else {
           const BUCKET_NAME = process.env.SUPABASE_BUCKET_NAME || 'reels';
           const { data: fileData, error: fileErr } = await supabase.storage.from(BUCKET_NAME).download(`last_published_${accountId}.txt`);
           if (!fileErr && fileData) {
-            lastPublished = parseInt(await fileData.text());
+            lastPublished = parseInt(await fileData.text(), 10);
+          }
+          const { data: schedData, error: schedErr } = await supabase.storage.from(BUCKET_NAME).download(`next_scheduled_${accountId}.txt`);
+          if (!schedErr && schedData) {
+            nextScheduled = parseInt(await schedData.text(), 10);
           }
         }
       } catch (e) {}
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ queue: data, lastPublished })
+        body: JSON.stringify({ queue: data, lastPublished, nextScheduled })
       };
     } 
     else if (event.httpMethod === 'POST') {
@@ -92,14 +106,18 @@ const handler = async (event, context) => {
       if (error) throw error;
 
       // If the queue was empty, we want the first item to process instantly.
-      // We set last_published to 0 to bypass the organic delay in the worker.
+      // We set last_published and next_scheduled to 0 to bypass the organic delay in the worker.
       if (count === 0) {
         if (S3) {
-          const command = new PutObjectCommand({ Bucket: bucketName, Key: `last_published_${targetAccount}.txt`, Body: '0', ContentType: 'text/plain' });
-          await S3.send(command).catch(e => console.error(e));
+          await S3.send(new PutObjectCommand({ Bucket: bucketName, Key: `last_published_${targetAccount}.txt`, Body: '0', ContentType: 'text/plain' })).catch(e => console.error(e));
+          await S3.send(new PutObjectCommand({ Bucket: bucketName, Key: `next_scheduled_${targetAccount}.txt`, Body: '0', ContentType: 'text/plain' })).catch(e => console.error(e));
         } else {
           const BUCKET_NAME = process.env.SUPABASE_BUCKET_NAME || 'reels';
           await supabase.storage.from(BUCKET_NAME).upload(`last_published_${targetAccount}.txt`, '0', { 
+            upsert: true, 
+            contentType: 'text/plain' 
+          });
+          await supabase.storage.from(BUCKET_NAME).upload(`next_scheduled_${targetAccount}.txt`, '0', { 
             upsert: true, 
             contentType: 'text/plain' 
           });

@@ -196,7 +196,8 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ accountId })
       });
       if (!res.ok) throw new Error('Failed to reset queue');
-      alert(`Queue for ${accountId === 'account2' ? 'Account 2' : 'Account 1'} successfully reset!`);
+      const accountNames = { account1: 'Account 1', account2: 'Account 2', account3: 'Account 3' };
+      alert(`Queue for ${accountNames[accountId] || accountId} successfully reset!`);
       await fetchQueue();
     } catch (err) {
       alert('Error: ' + err.message);
@@ -443,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch queue');
       
       renderQueue(data.queue);
-      startCountdownTimer(data.lastPublished, data.queue);
+      startCountdownTimer(data.lastPublished, data.queue, data.nextScheduled);
     } catch (err) {
       console.error('Error fetching queue:', err);
     }
@@ -451,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let countdownInterval = null;
 
-  function startCountdownTimer(lastPublished, queueItems = []) {
+  function startCountdownTimer(lastPublished, queueItems = [], nextScheduled = 0) {
     const timerSpan = document.getElementById('next-post-timer');
     const progressBar = document.getElementById('loop-progress-bar');
     const statusDot = document.getElementById('loop-status-dot');
@@ -487,10 +488,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    const cycleMs = 20 * 60 * 1000; // 20 mins minimum interval
+    const cycleMs = (nextScheduled && nextScheduled > lastPublished) 
+      ? (nextScheduled - lastPublished) 
+      : (22.5 * 60 * 1000); // 20-25 mins average fallback
+    
+    const targetTime = (nextScheduled && nextScheduled > lastPublished) 
+      ? nextScheduled 
+      : (lastPublished + cycleMs);
     
     const updateTimer = () => {
-      const targetTime = lastPublished + cycleMs;
       const now = Date.now();
       const diff = targetTime - now;
       const elapsed = now - lastPublished;
@@ -502,12 +508,6 @@ document.addEventListener('DOMContentLoaded', () => {
         timerSpan.textContent = 'Next post: Due Now (Posting...) 🚀';
         timerSpan.style.color = '#fbbf24';
         if (statusDot) statusDot.style.background = '#f59e0b';
-        
-        // DISABLED: Oracle Cloud VM daemon handles processing
-        // if (!window.hasTriggeredWorkerForThisDrop) {
-        //   window.hasTriggeredWorkerForThisDrop = true;
-        //   fetch('/api/process-worker-background', { method: 'POST' }).catch(console.error);
-        // }
       } else {
         window.hasTriggeredWorkerForThisDrop = false;
         const mins = Math.floor(diff / 60000);
@@ -589,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${logHtml}
             <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px; display: flex; align-items: center; gap: 6px;">
               <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">
-                ${item.account_id === 'account2' ? 'Account 2' : 'Account 1'}
+                ${item.account_id === 'account3' ? 'Account 3 (@house.of.paws38)' : (item.account_id === 'account2' ? 'Account 2 (@buffedboujee)' : 'Account 1 (@faith.canvas.99)')}
               </span>
               Queued: ${new Date(item.created_at).toLocaleString()}
             </div>
@@ -613,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${logHtml}
             <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px; display: flex; align-items: center; gap: 6px;">
               <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">
-                ${item.account_id === 'account2' ? 'Account 2' : 'Account 1'}
+                ${item.account_id === 'account3' ? 'Account 3 (@house.of.paws38)' : (item.account_id === 'account2' ? 'Account 2 (@buffedboujee)' : 'Account 1 (@faith.canvas.99)')}
               </span>
               Queued: ${new Date(item.created_at).toLocaleString()}
             </div>

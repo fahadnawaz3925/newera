@@ -94,118 +94,81 @@ const COLOR_GRADES = [
   'colorbalance=rs=0.02:gs=0.02:bs=0.00',          // sunrise
 ];
 
+const COLOR_PRESETS = {
+  'warm': 'colorbalance=rs=0.02:gs=-0.01:bs=0.03',
+  'cool': 'colorbalance=rs=-0.02:gs=0.01:bs=0.01',
+  'vintage': 'colorbalance=rs=0.03:gs=0.01:bs=-0.02', // golden
+  'none': null
+};
+
 // Generate all randomized transform parameters for a single video
-function generateAntiCopyrightParams(targetAccount) {
-  // Layer 1: Randomized visual transforms
-  const cropX = randFloat(0.96, 0.99).toFixed(4);
-  const cropY = randFloat(0.96, 0.99).toFixed(4);
-  const brightness = randFloat(0.005, 0.025).toFixed(4);
-  const contrast = randFloat(1.01, 1.04).toFixed(3);
-  const saturation = randFloat(1.01, 1.05).toFixed(3);
-  const gamma = randFloat(1.005, 1.02).toFixed(4);
-  const noiseStrength = randFloat(1.0, 2.5).toFixed(2);
-  const doMirror = targetAccount === 'account2'; // Mirroring allowed for ASMR (no text)
-  const frameRate = randPick(['29.97', '30', '30.03']);
+function generateAntiCopyrightParams(targetAccount, config) {
+  let isFlip = false;
+  if (targetAccount === 'account2') isFlip = true;
+  const doMirror = isFlip;
 
-  const isASMR = targetAccount === 'account2';
+  // Zoom to hide edge watermarks & vary frame
+  const cropX = randInt(2, 6);
+  const cropY = randInt(2, 6);
 
-  // Layer 2: Randomized audio transforms (Disabled for ASMR to preserve pristine sync and sound)
-  const audioSpeedFactor = isASMR ? "1.0000" : randFloat(1.02, 1.04).toFixed(4); // 2-4% speed change completely breaks audio temporal hashing
-  const audioPitchRate = (44100 * parseFloat(audioSpeedFactor)).toFixed(0);
-  const doStereoSwap = isASMR ? false : Math.random() < 0.5;
-  const silenceMs = 0; // Disabled: Injecting silence shifts the audio track and completely ruins A/V sync for ASMR!
-  const doReverb = isASMR ? false : Math.random() < 0.4;
-  const bgNoiseMix = isASMR ? "-99.0" : randFloat(-50, -40).toFixed(1);
+  // Slight color & lighting changes to bypass MD5 and frame hash
+  const brightness = randFloat(-0.04, 0.04);
+  const contrast = randFloat(0.95, 1.05);
+  const saturation = randFloat(1.05, 1.25);
+  const gamma = randFloat(0.95, 1.05);
+  
+  const frameRate = 30; // Enforce 30fps
 
-  // Layer 3: Temporal disruption (Disabled for ASMR to prevent keyframe seeking desync)
-  const trimStart = isASMR ? "0.000" : randFloat(0.1, 0.5).toFixed(3);
-  const trimEnd = isASMR ? "0.000" : randFloat(0.1, 0.5).toFixed(3);
-  const ptsFactor = (1 / parseFloat(audioSpeedFactor)).toFixed(4); // Sync video speed with audio speed precisely
-  const gopSize = randInt(18, 30);
+  // Audio masking
+  const audioSpeedFactor = randFloat(0.98, 1.02);
+  const audioPitchRate = 44100;
+  const doStereoSwap = Math.random() > 0.5;
+  const silenceMs = randInt(50, 150);
+  const doReverb = Math.random() > 0.5;
+  const bgNoiseMix = randFloat(0.01, 0.03); 
+  const doPhaser = Math.random() > 0.7;
 
-  // Layer 4: Encoding diversification (Instagram-optimized quality)
-  const preset = 'ultrafast'; // Force ultrafast because Oracle Cloud VM gets heavily throttled on any other preset
-  const videoBitrate = randPick(['6M', '7M', '8M']);
-  const maxRate = randPick(['8M', '10M']);
-  const audioBitrate = randPick(['128k', '144k', '160k', '192k']);
-  const profile = randPick(['high', 'main']);
-  const tune = 'film';   // Better quality for real-world footage
-  const level = '4.1';   // Max compatibility with mobile players
+  // Trimming to bypass duration matching
+  const trimStart = randFloat(0.1, 0.4); 
+  const trimEnd = randFloat(0.1, 0.4);
 
-  // Layer 5: Device profile rotation
+  const ptsFactor = 1 / audioSpeedFactor;
+
+  const preset = randPick(['fast', 'medium']);
+  const profile = randPick(['main', 'high']);
+  const tune = 'film';
+  const level = '4.0';
+
+  const gopSize = randInt(15, 45); 
+
+  const videoBitrate = randInt(2000, 4000) + 'k';
+  const maxRate = randInt(4000, 5000) + 'k';
+  const audioBitrate = randPick(['128k', '192k', '256k']);
+
+  const noiseStrength = randInt(1, 4);
+
+  const lensDistortion = randFloat(-0.01, 0.01);
+  const rotAngle = randFloat(-0.01, 0.01);
+  const fadeDuration = randFloat(0.1, 0.3);
+
   const device = randPick(DEVICE_PROFILES);
-  // Randomize creation_time to be within last 1-48 hours
-  const hoursAgo = randFloat(1, 48);
-  const creationTime = new Date(Date.now() - hoursAgo * 3600 * 1000).toISOString();
+  
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - randInt(5, 6000));
+  const creationTime = now.toISOString();
 
-  // Layer 6: Branded overlay
-  let watermarkText = '';
-  if (targetAccount === 'account2') watermarkText = '@buffedboujee';
-  else if (targetAccount === 'account3') watermarkText = '@house.of.paws38';
-  else watermarkText = '@faith.canvas.99';
-  const watermarkOpacity = randFloat(0.15, 0.25).toFixed(2);
-  const watermarkSize = randInt(28, 42);
+  // DYNAMIC CONFIGURATIONS
+  let watermarkText = (config && config.watermark_text) ? config.watermark_text : '@' + targetAccount;
+  const watermarkOpacity = randFloat(0.3, 0.5);
+  const watermarkSize = randInt(16, 24);
+  let colorGradeLabel = config && config.color_grade !== 'none' ? config.color_grade : randPick(['vintage', 'warm', 'cool', 'none']);
+  let colorGrade = colorGradeLabel === 'none' ? null : (COLOR_PRESETS[colorGradeLabel] || randPick(COLOR_GRADES));
 
-  // Layer 7: Color grading
-  const colorGrade = randPick(COLOR_GRADES);
-
-  // Layer 9: Geometric Warp (Compression-Aware Adversarial Attack)
-  // Random barrel (positive) or pincushion (negative) distortion between 1% and 3%
-  const lensDistortion = (Math.random() < 0.5 ? 1 : -1) * randFloat(0.010, 0.030).toFixed(3);
-  // Micro-rotation to break symmetry (-0.5 to +0.5 degrees)
-  const rotAngle = randFloat(-0.5, 0.5).toFixed(3);
-
-  // Layer 10: Advanced Audio Scrambling
-  // Phaser is fantastic for scrambling fingerprints, but ruins ASMR. We disable it for account2.
-  const doPhaser = targetAccount === 'account1' ? Math.random() < 0.7 : false; // 70% chance for account1
-  // Smooth fade-in to prevent audio clipping
-  const fadeDuration = randFloat(0.2, 0.4).toFixed(2);
-
-  // Build account-specific content metadata
-  let metaTitle, metaArtist, metaComment, metaGenre;
-  if (targetAccount === 'account2') {
-    metaTitle = randPick([
-      'ASMR Leather Shoe Shining & Restoration | Buffed & Boujee',
-      'Satisfying Shoe Shine ASMR | Buffed & Boujee',
-      'Leather Restoration ASMR | Buffed & Boujee',
-      'Shoe Care & Polish ASMR | Buffed & Boujee',
-    ]);
-    metaArtist = 'buffedboujee';
-    metaComment = randPick([
-      'ASMR Shoe Shine, Leather Restoration, Oddly Satisfying, Leather Polish, Shoe Care',
-      'Shoe Shining ASMR, Leather Polish, Satisfying Restoration, Premium Shoe Care',
-      'Leather Shoe ASMR, Mirror Shine Polish, Oddly Satisfying, Buffed & Boujee',
-    ]);
-    metaGenre = 'ASMR / How-to & Style';
-  } else if (targetAccount === 'account3') {
-    metaTitle = randPick([
-      'Cute Dogs & Funny Pets | House of Paws',
-      'Hilarious Animal Moments | House of Paws',
-      'Cute Puppies & Kittens | House of Paws',
-      'Daily Pet Dose | House of Paws',
-    ]);
-    metaArtist = 'house.of.paws38';
-    metaComment = randPick([
-      'Cute pets, dogs, puppies, funny animals, house of paws',
-      'Funny dogs, cute cats, adorable pets, animal videos',
-      'Best pet videos, funny dog moments, cute puppies',
-    ]);
-    metaGenre = 'Pets & Animals';
-  } else {
-    metaTitle = randPick([
-      'Islamic Reminders & Quran Recitation | Faith Canvas',
-      'Daily Quran Reminders | Faith Canvas',
-      'Beautiful Quran & Islamic Wisdom | Faith Canvas',
-      'Islamic Motivation & Hadith | Faith Canvas',
-    ]);
-    metaArtist = 'faith.canvas.99';
-    metaComment = randPick([
-      'Islamic Reminders, Quran, Sunnah, Deen Over Dunya, Taqwa, Dua, Dhikr, Hadith',
-      'Quran Recitation, Islamic Wisdom, Deen, Sunnah, Taqwa, Daily Reminders',
-      'Islamic Motivation, Hadith, Quran, Dua, Allah, Faith Canvas',
-    ]);
-    metaGenre = 'Nonprofit & Activism / Religious Reminders';
-  }
+  // Metadata
+  let metaTitle = (config && config.fallback_title) ? config.fallback_title : 'Reel';
+  let metaArtist = watermarkText.replace('@', '');
+  let metaComment = (config && config.hashtags) ? config.hashtags : 'Reels';
+  let metaGenre = 'Entertainment';
 
   return {
     // Layer 1
@@ -242,8 +205,12 @@ function fileToGenerativePart(filePath, mimeType = 'image/jpeg') {
 }
 
 // AI Caption Generator with Retry & Dynamic Video Context Fallback
-async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = null, videoMetadata = null) {
-  const geminiKey = process.env.GEMINI_API_KEY;
+async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = null, videoMetadata = null, config = null) {
+  const apiKeys = [
+    process.env.GEMINI_API_KEY_1,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY
+  ].filter(Boolean);
   const hasCoverImage = coverPath && fs.existsSync(coverPath);
 
   let videoContext = '';
@@ -261,89 +228,46 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
     }
   }
 
-  const promptAccount2 = `You are an expert viral Instagram Reel caption writer for @buffedboujee — a Leather Shoe Shine & ASMR page.
-${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
-Analyze this video's visual frame carefully and write a caption that feels authentic, engaging, and tailored to THIS specific video.
-
-RULES:
-- NEVER use any selling, promotional, or commercial language. We are NOT selling anything.
-- NEVER mention products, prices, services, links, or "DM us".
-- The ONLY call to action allowed is: "Follow @buffedboujee for more satisfying content 👞✨"
-- Keep it conversational — like a real person sharing something cool, not a brand.
-
-STRUCTURE:
-1. A short, punchy hook line that stops the scroll (e.g., "That first brush stroke though... 🤌", "Turn your sound UP 🎧🔥", "Watch till the end for the reveal ✨").
-2. 2-3 sentences describing what's happening in THIS specific video — the shoe type, the transformation, the ASMR sounds, the satisfying moments.
-3. CTA: "Follow @buffedboujee for more satisfying content 👞✨"
-4. 6-8 hashtags mixing trending & niche: #ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning
-
-Do NOT use markdown, code blocks, or header symbols (###). Write plain text only.`;
-
-  const promptAccount1 = `You are an expert viral Instagram Reel caption writer for @faith.canvas.99 — an Islamic Reminders & Quran page.
-${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
-Analyze this video's visual frame carefully and write a beautiful, heartfelt caption tailored to THIS specific video's Islamic topic.
-
-RULES:
-- NEVER use any selling, promotional, or commercial language. We are NOT selling anything.
-- NEVER mention products, links, courses, "DM us", or anything transactional.
-- The ONLY call to action allowed is: "Follow @faith.canvas.99 for daily reminders 🤲🕊️"
-- Keep it sincere, warm, and spiritually uplifting — like a brother/sister sharing a reminder from the heart.
-
-STRUCTURE:
-1. An emotional hook that makes people pause (e.g., "This verse hit different today 📖💔", "Save this for your lowest days 🤲", "SubhanAllah, listen to this... 🕊️✨", "A reminder your soul needed right now 💚").
-2. 2-3 sentences of heartfelt reflection related to THIS video's specific topic — connect it to daily life, struggles, gratitude, or closeness to Allah. Reference the specific Quran verse, hadith, or Islamic concept if visible/audible in the video.
-3. CTA: "Follow @faith.canvas.99 for daily reminders 🤲🕊️"
-4. 6-8 hashtags mixing trending & niche: #Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa #Hadith
-
-Do NOT use markdown, code blocks, or header symbols (###). Write plain text only.`;
-
-  const promptAccount3 = `You are an expert viral Instagram Reel caption writer for @house.of.paws38 — a Cute Pets & Animals page.
-${videoContext ? 'Video details: ' + videoContext + '\n' : ''}
-Analyze this video's visual frame carefully and write a caption that feels highly engaging and tailored to THIS specific pet video.
-
-RULES:
-- NEVER use any selling, promotional, or commercial language. We are NOT selling anything.
-- The ONLY call to action allowed is: "Follow @house.of.paws38 for your daily dose of cuteness 🐾🐶"
-- Keep it light, fun, and conversational.
-
-STRUCTURE:
-1. A short, funny, or cute hook line (e.g., "The way he looked at the camera 🥺", "I can't stop laughing at this 😂", "Wait for the end... 🐶").
-2. 2-3 sentences describing the cute or funny pet moment in THIS specific video.
-3. CTA: "Follow @house.of.paws38 for your daily dose of cuteness 🐾🐶"
-4. 6-8 hashtags mixing trending & niche: #DogsOfInstagram #CutePets #FunnyDogs #DogLovers #PuppyLove #PetVideos #HouseOfPaws
-
-Do NOT use markdown, code blocks, or header symbols (###). Write plain text only.`;
-
   let prompt;
-  if (targetAccount === 'account2') prompt = promptAccount2;
-  else if (targetAccount === 'account3') prompt = promptAccount3;
-  else prompt = promptAccount1;
+  if (config && config.caption_prompt) {
+    prompt = config.caption_prompt;
+    if (videoContext) prompt = `${videoContext}\n\n${prompt}`;
+  } else {
+    // Fallback if DB fails
+    prompt = "Write a viral Instagram reel caption for this video. Use emojis and hashtags.";
+  }
 
-  if (geminiKey) {
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.6-flash'];
+  if (apiKeys.length > 0) {
+    const modelsToTry = ['gemini-2.0-flash', 'gemini-2.5-flash'];
 
-    for (const modelName of modelsToTry) {
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          console.log(`Attempting visual caption generation with model: ${modelName} (Attempt ${attempt}) for ${targetAccount}...`);
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const contents = hasCoverImage
-            ? [prompt, fileToGenerativePart(coverPath)]
-            : [prompt];
+    for (const geminiKey of apiKeys) {
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      
+      for (const modelName of modelsToTry) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            console.log(`Attempting visual caption generation with model: ${modelName} (Attempt ${attempt}) for ${targetAccount}...`);
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const contents = hasCoverImage
+              ? [prompt, fileToGenerativePart(coverPath)]
+              : [prompt];
 
-          const result = await model.generateContent(contents);
-          let text = result.response?.text()?.trim();
-          if (text) {
-            text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
-            console.log(`Caption successfully generated using model: ${modelName}`);
-            return text;
-          }
-        } catch (err) {
-          console.warn(`Model ${modelName} attempt ${attempt} failed for ${targetAccount}:`, err.message);
-          if (err.message.includes('429')) {
-            console.log(`Quota 429 encountered, sleeping 3s before retry/next model...`);
-            await sleep(3000);
+            const result = await model.generateContent(contents);
+            let text = result.response?.text()?.trim();
+            if (text) {
+              text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
+              console.log(`Caption successfully generated using model: ${modelName}`);
+              return text;
+            }
+          } catch (err) {
+            console.warn(`Model ${modelName} attempt ${attempt} failed for ${targetAccount}:`, err.message);
+            if (err.message.includes('429')) {
+              console.log(`Quota 429 encountered, switching to next model or API key...`);
+              break; // Break the attempt loop to try the next model or key immediately
+            } else {
+              console.log(`Sleeping 3s before retry...`);
+              await sleep(3000);
+            }
           }
         }
       }
@@ -368,6 +292,9 @@ Do NOT use markdown, code blocks, or header symbols (###). Write plain text only
 
 // Single Video Processor
 async function processSingleItem(item, targetAccount) {
+  // Fetch dynamic configuration from DB
+  const { data: accData, error: accErr } = await supabase.from('reels_accounts').select('*').eq('account_id', targetAccount).single();
+  const accountConfig = accData || null;
   let IG_BUSINESS_ACCOUNT_ID, PAGE_ACCESS_TOKEN, IG_SESSION_ID;
 
   if (targetAccount === 'account3') {
@@ -411,20 +338,19 @@ async function processSingleItem(item, targetAccount) {
     return;
   }
 
+  // Note: The RPC already marked it as PROCESSING, so we just update the hash and account
   const { data: updateData, error: updateError } = await supabase
     .from('reels_queue')
     .update({ 
-      status: 'PROCESSING', 
       error_log: null, 
       source_hash: sourceUrlHash,
-      account_id: targetAccount // Assign to this account formally (in case it was null)
+      account_id: targetAccount
     })
     .eq('id', item.id)
-    .eq('status', 'PENDING')
     .select();
 
-  if (updateError || !updateData || updateData.length === 0) {
-    console.log(`⚠️ Item ${item.id} was already grabbed by another worker. Skipping.`);
+  if (updateError) {
+    console.log(`⚠️ Failed to update hash for ${item.id}. Skipping.`);
     return;
   }
 
@@ -542,7 +468,7 @@ async function processSingleItem(item, targetAccount) {
     // ═══════════════════════════════════════════════════════════════
     // 🛡️ ANTI-COPYRIGHT SHIELD — 10-Layer Transform Pipeline
     // ═══════════════════════════════════════════════════════════════
-    const params = generateAntiCopyrightParams(targetAccount);
+    const params = generateAntiCopyrightParams(targetAccount, accountConfig);
 
     console.log(`\n🛡️ Anti-Copyright Shield v2.0 — 10-Layer Pipeline for ${targetAccount}`);
     console.log(`  L1 Visual: crop(${params.cropX}x${params.cropY}) bright(${params.brightness}) contrast(${params.contrast}) sat(${params.saturation}) gamma(${params.gamma}) noise(${params.noiseStrength}) mirror(${params.doMirror}) fps(${params.frameRate})`);
@@ -559,9 +485,11 @@ async function processSingleItem(item, targetAccount) {
     // --- Build video filter chain ---
     const vfParts = [];
 
-    // Layer 1: Randomized crop
-    vfParts.push(`crop=iw*${params.cropX}:ih*${params.cropY}`);
-    vfParts.push('scale=1080:1920:force_original_aspect_ratio=decrease');
+    // Layer 1: Visual Obfuscation
+    // Crop 2-6% to hide edge artifacts/watermarks
+    vfParts.push(`crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`);
+    // Scale back to 1080x1920 to maintain exact Reel dimensions
+    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=decrease`);
     vfParts.push('pad=1080:1920:(ow-iw)/2:(oh-ih)/2');
     vfParts.push('setsar=1');
 
@@ -579,7 +507,9 @@ async function processSingleItem(item, targetAccount) {
     vfParts.push(`noise=alls=${params.noiseStrength}:allf=u`);
 
     // Layer 7: Random color grading
-    vfParts.push(params.colorGrade);
+    if (params.colorGrade) {
+      vfParts.push(params.colorGrade);
+    }
 
     // Layer 3: Temporal PTS shift (subtle speed variation)
     vfParts.push(`setpts=PTS*${params.ptsFactor}`);
@@ -892,6 +822,7 @@ async function processSingleItem(item, targetAccount) {
       thumb_offset: thumbOffsetMs,
       access_token: PAGE_ACCESS_TOKEN
     };
+    if (publicCoverUrl) metaPayload.cover_url = publicCoverUrl;
 
     // Log the exact caption and thumbnail config being sent
     console.log(`📝 AI Caption (first 150 chars):\n${caption.substring(0, 150)}...`);
@@ -939,17 +870,34 @@ async function processSingleItem(item, targetAccount) {
     // Mark PUBLISHED immediately in Supabase
     await supabase.from('reels_queue').update({ status: 'PUBLISHED', error_log: null }).eq('id', item.id);
 
-    // Update last_published timestamp in R2
+    const now = Date.now();
+    const nextIntervalMins = randFloat(20, 25);
+    const nextPostTime = now + Math.round(nextIntervalMins * 60 * 1000);
+    scheduledNextPost[targetAccount] = nextPostTime;
+
+    // Update last_published and next_scheduled timestamps in R2
     await S3.send(new PutObjectCommand({
       Bucket: bucketName,
       Key: `last_published_${targetAccount}.txt`,
-      Body: Date.now().toString(),
+      Body: now.toString(),
       ContentType: 'text/plain'
     })).catch(e => console.error(e));
 
+    await S3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: `next_scheduled_${targetAccount}.txt`,
+      Body: nextPostTime.toString(),
+      ContentType: 'text/plain'
+    })).catch(e => console.error(e));
+
+    console.log(`⏱️ Next post for ${targetAccount} scheduled in ${nextIntervalMins.toFixed(1)} minutes (at ${new Date(nextPostTime).toLocaleTimeString()})`);
+
     // Cleanup R2 temporary video asset (keep cover image on R2 so Meta image fetcher never 404s!)
     await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: uploadName })).catch(e => console.error(e));
-    console.log(`Temporary video file ${uploadName} cleaned up from R2. Cover image ${coverName} preserved for Meta.`);
+    if (rawUploadStoragePath) {
+      await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: rawUploadStoragePath })).catch(e => console.error(e));
+    }
+    console.log(`Temporary video file ${uploadName} and raw source cleaned up from R2. Cover image ${coverName} preserved for Meta.`);
 
   } catch (processError) {
     console.error(`❌ Error processing item ${item.id} for ${targetAccount}:`, processError.message);
@@ -979,9 +927,6 @@ async function processSingleItem(item, targetAccount) {
           try { fs.unlinkSync(path.join(tempDir, f)); } catch (e) { }
         }
         await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: `${fileId}.mp4` })).catch(e => console.error(e));
-        if (rawUploadStoragePath) {
-          await S3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: rawUploadStoragePath })).catch(e => console.error(e));
-        }
       }
     } catch (cleanupErr) {
       console.error('Cleanup error:', cleanupErr);
@@ -989,10 +934,14 @@ async function processSingleItem(item, targetAccount) {
   }
 }
 
+// In-memory cache for next scheduled post time per account
+const scheduledNextPost = {};
+
 // Continuous Daemon Loop
 async function startDaemon() {
   console.log(`\n======================================================`);
   console.log(`🚀 Standalone 24/7 Reel Auto-Poster Daemon Started`);
+  console.log(`⏱️ Schedule: Every 20-25 minutes per account independently`);
   console.log(`======================================================\n`);
 
   const supportedAccounts = ['account1', 'account2', 'account3'];
@@ -1063,7 +1012,7 @@ async function startDaemon() {
           }
         }
 
-        // 1. Check active PROCESSING items — reset stale ones (>10 min)
+        // 1. Check active PROCESSING items and auto-recover stale ones (>15 min)
         let procQuery = supabase.from('reels_queue').select('*').eq('status', 'PROCESSING');
         if (targetAccount === 'account1') {
           procQuery = procQuery.or('account_id.eq.account1,account_id.is.null');
@@ -1073,19 +1022,30 @@ async function startDaemon() {
 
         const { data: activeProcs } = await procQuery;
         if (activeProcs && activeProcs.length > 0) {
-          const tenMinsAgo = Date.now() - 10 * 60 * 1000;
-          const staleItems = activeProcs.filter(item => new Date(item.created_at).getTime() < tenMinsAgo);
+          const fifteenMinsAgo = Date.now() - 15 * 60 * 1000;
+          const staleItems = activeProcs.filter(item => new Date(item.created_at).getTime() < fifteenMinsAgo);
           if (staleItems.length > 0) {
-            console.log(`Resetting ${staleItems.length} orphaned processing item(s) for ${targetAccount}...`);
-            await supabase.from('reels_queue').update({ status: 'PENDING', error_log: 'Reset orphaned PROCESSING state (>10m)' }).in('id', staleItems.map(i => i.id));
-            continue;
-          } else {
-            // Active item currently being processed, skip
-            continue;
+            console.log(`[${targetAccount}] 🔄 Resetting ${staleItems.length} stuck PROCESSING item(s) (>15m) back to PENDING...`);
+            await supabase.from('reels_queue').update({ status: 'PENDING', error_log: 'Reset stuck PROCESSING state (>15m)' }).in('id', staleItems.map(i => i.id));
           }
+          // If an item is still actively processing within 15 min, wait for it
+          continue;
         }
 
-        // 2. Fetch last_published timestamp from R2
+        // 2. Check if there are pending items in the queue for this account
+        let pendQuery = supabase.from('reels_queue').select('id', { count: 'exact', head: true }).eq('status', 'PENDING');
+        if (targetAccount === 'account1') {
+          pendQuery = pendQuery.or('account_id.eq.account1,account_id.is.null');
+        } else {
+          pendQuery = pendQuery.eq('account_id', targetAccount);
+        }
+        const { count: pendingCount } = await pendQuery;
+        if (!pendingCount || pendingCount === 0) {
+          // No items in queue for this account, move to next
+          continue;
+        }
+
+        // 3. Fetch last_published timestamp from R2
         let lastPub = 0;
         try {
           const command = new GetObjectCommand({ Bucket: bucketName, Key: `last_published_${targetAccount}.txt` });
@@ -1093,57 +1053,76 @@ async function startDaemon() {
           const text = await response.Body.transformToString();
           lastPub = parseInt(text, 10);
         } catch (e) {
-          // No timestamp file = never published = first video should go immediately
+          // No timestamp file = never published
         }
 
-        // 3. Fetch oldest PENDING item
-        let query = supabase.from('reels_queue').select('*').eq('status', 'PENDING');
-        if (targetAccount === 'account1') {
-          query = query.or('account_id.eq.account1,account_id.is.null');
-        } else {
-          query = query.eq('account_id', targetAccount);
+        // 4. Fetch next_scheduled timestamp
+        let nextScheduled = scheduledNextPost[targetAccount] || 0;
+        if (!nextScheduled) {
+          try {
+            const command = new GetObjectCommand({ Bucket: bucketName, Key: `next_scheduled_${targetAccount}.txt` });
+            const response = await S3.send(command);
+            const text = await response.Body.transformToString();
+            nextScheduled = parseInt(text, 10);
+            scheduledNextPost[targetAccount] = nextScheduled;
+          } catch (e) {
+            // No next_scheduled file yet
+          }
         }
 
-        const { data: queueItems } = await query.order('created_at', { ascending: true }).limit(1);
-
-        if (!queueItems || queueItems.length === 0) continue;
-
-        const item = queueItems[0];
-
-        // 4. Determine cooldown: first video = instant, rest = 20-25 min gap
+        // 5. Determine whether ready to post (20-25 min interval)
         const now = Date.now();
-        const msSinceLastPost = now - (isNaN(lastPub) ? 0 : lastPub);
-        const minsSinceLastPost = msSinceLastPost / (1000 * 60);
-
-        // Pick a random cooldown between 20-25 min for natural spacing
-        const COOLDOWN_MIN = 20;
-        const COOLDOWN_MAX = 25;
-        const cooldownTarget = COOLDOWN_MIN + Math.random() * (COOLDOWN_MAX - COOLDOWN_MIN);
-
         let isReady = false;
 
         if (lastPub === 0) {
-          // Never published before — post the first video immediately
+          // First video ever or reset queue — post immediately!
           console.log(`[${targetAccount}] 🆕 No previous post found — processing first video immediately!`);
           isReady = true;
-        } else if (minsSinceLastPost >= cooldownTarget) {
-          // Enough time has passed since last post
-          console.log(`[${targetAccount}] ⏰ ${minsSinceLastPost.toFixed(1)} min since last post (cooldown: ${cooldownTarget.toFixed(1)} min) — ready to post!`);
-          isReady = true;
         } else {
-          // Still in cooldown — log every 2 minutes to avoid spam
-          const waitMinsLeft = (cooldownTarget - minsSinceLastPost).toFixed(1);
-          const logKey = `${targetAccount}`;
-          const lastLog = lastWaitLog[logKey] || 0;
-          if (now - lastLog > 2 * 60 * 1000) {
-            console.log(`[${targetAccount}] ⏳ Waiting ~${waitMinsLeft} min before next post (${minsSinceLastPost.toFixed(1)}/${cooldownTarget.toFixed(1)} min elapsed)`);
-            lastWaitLog[logKey] = now;
+          // If nextScheduled is missing or invalid, generate a 20-25 min target
+          if (!nextScheduled || isNaN(nextScheduled) || nextScheduled < lastPub) {
+            const intervalMins = randFloat(20, 25);
+            nextScheduled = lastPub + Math.round(intervalMins * 60 * 1000);
+            scheduledNextPost[targetAccount] = nextScheduled;
+            await S3.send(new PutObjectCommand({
+              Bucket: bucketName,
+              Key: `next_scheduled_${targetAccount}.txt`,
+              Body: nextScheduled.toString(),
+              ContentType: 'text/plain'
+            })).catch(e => {});
           }
-          isReady = false;
+
+          if (now >= nextScheduled) {
+            const minsSinceLastPost = ((now - lastPub) / 60000).toFixed(1);
+            console.log(`[${targetAccount}] ⏰ 20-25 min cooldown elapsed (${minsSinceLastPost} min since last post) — ready to post!`);
+            isReady = true;
+          } else {
+            const waitMinsLeft = ((nextScheduled - now) / 60000).toFixed(1);
+            const minsSinceLastPost = ((now - lastPub) / 60000).toFixed(1);
+            const logKey = `${targetAccount}`;
+            const lastLog = lastWaitLog[logKey] || 0;
+            if (now - lastLog > 2 * 60 * 1000) {
+              console.log(`[${targetAccount}] ⏳ Next post in ~${waitMinsLeft} min (${minsSinceLastPost} min elapsed since last post) [${pendingCount} video(s) queued]`);
+              lastWaitLog[logKey] = now;
+            }
+            isReady = false;
+          }
         }
 
         if (isReady) {
-          await processSingleItem(item, targetAccount);
+          // 6. Claim oldest PENDING item using RPC ONLY IF READY
+          const { data: queueItems, error: rpcError } = await supabase
+            .rpc('claim_next_queue_item', { p_account_id: targetAccount });
+            
+          if (rpcError) {
+            console.error(`RPC Error for ${targetAccount}:`, rpcError);
+            continue;
+          }
+
+          if (queueItems && queueItems.length > 0) {
+            const item = queueItems[0];
+            await processSingleItem(item, targetAccount);
+          }
         }
       } catch (loopErr) {
         console.error(`Error in daemon loop for ${targetAccount}:`, loopErr.message);
@@ -1156,3 +1135,4 @@ async function startDaemon() {
 }
 
 startDaemon();
+
