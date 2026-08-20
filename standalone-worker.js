@@ -134,7 +134,7 @@ function generateAntiCopyrightParams(targetAccount, config) {
 
   const ptsFactor = 1 / audioSpeedFactor;
 
-  const preset = randPick(['fast', 'medium']);
+  const preset = randPick(['ultrafast', 'superfast', 'fast']);
   const profile = randPick(['main', 'high']);
   const tune = 'film';
   const level = '4.0';
