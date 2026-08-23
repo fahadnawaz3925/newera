@@ -51,6 +51,79 @@ function getNextProxy() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 🔒 GLOBAL MUTEX & CROSS-ACCOUNT STAGGERING ENGINE
+// Guarantees STRICTLY ONE video publishes at a time across all accounts
+// ═══════════════════════════════════════════════════════════════
+const GLOBAL_LOCK_KEY = 'global_publisher_lock.json';
+const GLOBAL_LOCK_TIMEOUT_MS = 15 * 60 * 1000; // 15 min max lock duration before auto-recovery
+const GLOBAL_MIN_STAGGER_MINS = 7.0; // Min 7 min interval between ANY post across accounts
+
+async function acquireGlobalLock(accountId, itemId = 'pre-claim') {
+  try {
+    const cmd = new GetObjectCommand({ Bucket: bucketName, Key: GLOBAL_LOCK_KEY });
+    const res = await S3.send(cmd);
+    const bodyStr = await res.Body.transformToString();
+    const lock = JSON.parse(bodyStr);
+    
+    if (lock && lock.isLocked) {
+      const lockAge = Date.now() - (lock.lockedAt || 0);
+      if (lockAge < GLOBAL_LOCK_TIMEOUT_MS) {
+        return { 
+          acquired: false, 
+          holder: lock.lockedByAccount, 
+          itemId: lock.itemId,
+          ageMins: (lockAge / 60000).toFixed(1) 
+        };
+      }
+      console.log(`[GLOBAL LOCK] ⚠️ Stale lock detected (${(lockAge/60000).toFixed(1)}m old held by ${lock.lockedByAccount}). Auto-recovering lock.`);
+    }
+  } catch (e) {
+    // No lock file exists, proceed
+  }
+
+  const lockData = {
+    isLocked: true,
+    lockedByAccount: accountId,
+    itemId: itemId,
+    lockedAt: Date.now(),
+    pid: process.pid,
+    hostname: os.hostname()
+  };
+
+  try {
+    await S3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: GLOBAL_LOCK_KEY,
+      Body: JSON.stringify(lockData),
+      ContentType: 'application/json'
+    }));
+    return { acquired: true };
+  } catch (err) {
+    console.error('Failed to write global lock to R2:', err.message);
+    return { acquired: false, error: err.message };
+  }
+}
+
+async function releaseGlobalLock(accountId) {
+  try {
+    const lockData = {
+      isLocked: false,
+      lastReleasedByAccount: accountId,
+      releasedAt: Date.now()
+    };
+    await S3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: GLOBAL_LOCK_KEY,
+      Body: JSON.stringify(lockData),
+      ContentType: 'application/json'
+    }));
+  } catch (err) {
+    console.error('Failed to release global lock in R2:', err.message);
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
 // 🛡️ ANTI-COPYRIGHT SHIELD — Randomization Engine
 // ═══════════════════════════════════════════════════════════════
 
@@ -238,7 +311,7 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
   }
 
   if (apiKeys.length > 0) {
-    const modelsToTry = ['gemini-2.0-flash', 'gemini-2.5-flash'];
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.5-pro', 'gemini-1.5-pro', 'gemini-2.0-flash'];
 
     for (const geminiKey of apiKeys) {
       const genAI = new GoogleGenerativeAI(geminiKey);
@@ -875,7 +948,7 @@ async function processSingleItem(item, targetAccount) {
     const nextPostTime = now + Math.round(nextIntervalMins * 60 * 1000);
     scheduledNextPost[targetAccount] = nextPostTime;
 
-    // Update last_published and next_scheduled timestamps in R2
+    // Update last_published, next_scheduled, and last_published_global in R2
     await S3.send(new PutObjectCommand({
       Bucket: bucketName,
       Key: `last_published_${targetAccount}.txt`,
@@ -887,6 +960,13 @@ async function processSingleItem(item, targetAccount) {
       Bucket: bucketName,
       Key: `next_scheduled_${targetAccount}.txt`,
       Body: nextPostTime.toString(),
+      ContentType: 'text/plain'
+    })).catch(e => console.error(e));
+
+    await S3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: 'last_published_global.txt',
+      Body: now.toString(),
       ContentType: 'text/plain'
     })).catch(e => console.error(e));
 
@@ -919,6 +999,9 @@ async function processSingleItem(item, targetAccount) {
       }
     }
   } finally {
+    // ALWAYS release global lock on exit (success or failure)
+    await releaseGlobalLock(targetAccount);
+
     try {
       if (fileId) {
         const tempDir = os.tmpdir();
@@ -942,6 +1025,8 @@ async function startDaemon() {
   console.log(`\n======================================================`);
   console.log(`🚀 Standalone 24/7 Reel Auto-Poster Daemon Started`);
   console.log(`⏱️ Schedule: Every 20-25 minutes per account independently`);
+  console.log(`🔒 Global Mutex: STRICTLY 1 video rendering/publishing at a time`);
+  console.log(`⏱️ Cross-Account Staggering: Min ${GLOBAL_MIN_STAGGER_MINS} minutes between ANY account posts`);
   console.log(`======================================================\n`);
 
   const supportedAccounts = ['account1', 'account2', 'account3'];
@@ -952,18 +1037,20 @@ async function startDaemon() {
   while (true) {
     for (const targetAccount of supportedAccounts) {
       try {
+        const now = Date.now();
+
         // 0. Check Emergency Cooldown
         try {
           const rlCmd = new GetObjectCommand({ Bucket: bucketName, Key: `rate_limit_${targetAccount}.txt` });
           const rlRes = await S3.send(rlCmd);
           const rlUntil = parseInt(await rlRes.Body.transformToString(), 10);
-          if (Date.now() < rlUntil) {
-            const minsLeft = ((rlUntil - Date.now()) / 60000).toFixed(1);
+          if (now < rlUntil) {
+            const minsLeft = ((rlUntil - now) / 60000).toFixed(1);
             const logKey = `RL_${targetAccount}`;
             const lastLog = lastWaitLog[logKey] || 0;
-            if (Date.now() - lastLog > 5 * 60 * 1000) {
+            if (now - lastLog > 5 * 60 * 1000) {
               console.log(`[${targetAccount}] 🚨 EMERGENCY COOLDOWN ACTIVE. ${minsLeft} minutes remaining before resuming.`);
-              lastWaitLog[logKey] = Date.now();
+              lastWaitLog[logKey] = now;
             }
             continue; // Skip processing for this account until cooldown is over
           }
@@ -980,7 +1067,6 @@ async function startDaemon() {
         }
         const { data: missingThumbs, error: thumbErr } = await hydrateQuery;
         
-        // If there's no thumbnail_url column yet, the query will throw an error, which we ignore
         if (!thumbErr && missingThumbs && missingThumbs.length > 0) {
           const tItem = missingThumbs[0];
           console.log(`[${targetAccount}] 🖼️ Hydrating missing thumbnail for ${tItem.id}...`);
@@ -1045,7 +1131,27 @@ async function startDaemon() {
           continue;
         }
 
-        // 3. Fetch last_published timestamp from R2
+        // 3. Check Global Staggering Interval across ALL accounts (Min 7 mins between ANY post)
+        let lastGlobalPub = 0;
+        try {
+          const gCmd = new GetObjectCommand({ Bucket: bucketName, Key: 'last_published_global.txt' });
+          const gRes = await S3.send(gCmd);
+          lastGlobalPub = parseInt(await gRes.Body.transformToString(), 10);
+        } catch (e) {}
+
+        const globalElapsedMins = (now - lastGlobalPub) / 60000;
+        if (lastGlobalPub > 0 && globalElapsedMins < GLOBAL_MIN_STAGGER_MINS) {
+          const staggerWaitLeft = (GLOBAL_MIN_STAGGER_MINS - globalElapsedMins).toFixed(1);
+          const gLogKey = `GLOBAL_STAGGER`;
+          const lastGLog = lastWaitLog[gLogKey] || 0;
+          if (now - lastGLog > 2 * 60 * 1000) {
+            console.log(`[GLOBAL] ⏱️ Global stagger active: waiting ~${staggerWaitLeft} min before ANY account can post (avoiding simultaneous posts).`);
+            lastWaitLog[gLogKey] = now;
+          }
+          continue; // Wait for global stagger before processing any account
+        }
+
+        // 4. Fetch last_published timestamp for this specific account from R2
         let lastPub = 0;
         try {
           const command = new GetObjectCommand({ Bucket: bucketName, Key: `last_published_${targetAccount}.txt` });
@@ -1056,7 +1162,7 @@ async function startDaemon() {
           // No timestamp file = never published
         }
 
-        // 4. Fetch next_scheduled timestamp
+        // 5. Fetch next_scheduled timestamp for this specific account
         let nextScheduled = scheduledNextPost[targetAccount] || 0;
         if (!nextScheduled) {
           try {
@@ -1070,13 +1176,12 @@ async function startDaemon() {
           }
         }
 
-        // 5. Determine whether ready to post (20-25 min interval)
-        const now = Date.now();
+        // 6. Determine whether ready to post (20-25 min per-account interval)
         let isReady = false;
 
         if (lastPub === 0) {
           // First video ever or reset queue — post immediately!
-          console.log(`[${targetAccount}] 🆕 No previous post found — processing first video immediately!`);
+          console.log(`[${targetAccount}] 🆕 No previous post found — ready to post!`);
           isReady = true;
         } else {
           // If nextScheduled is missing or invalid, generate a 20-25 min target
@@ -1110,22 +1215,64 @@ async function startDaemon() {
         }
 
         if (isReady) {
-          // 6. Claim oldest PENDING item using RPC ONLY IF READY
+          // 7. Acquire Global Lock FIRST before claiming or processing
+          const lockResult = await acquireGlobalLock(targetAccount, 'claiming');
+          if (!lockResult.acquired) {
+            const logKey = `LOCKED_${targetAccount}`;
+            const lastLog = lastWaitLog[logKey] || 0;
+            if (now - lastLog > 2 * 60 * 1000) {
+              console.log(`[${targetAccount}] 🔒 Global lock held by "${lockResult.holder}" (locked ${lockResult.ageMins}m ago). Waiting.`);
+              lastWaitLog[logKey] = now;
+            }
+            continue;
+          }
+
+          // 8. Claim oldest PENDING item using atomic RPC
           const { data: queueItems, error: rpcError } = await supabase
             .rpc('claim_next_queue_item', { p_account_id: targetAccount });
             
           if (rpcError) {
             console.error(`RPC Error for ${targetAccount}:`, rpcError);
+            await releaseGlobalLock(targetAccount);
             continue;
           }
 
-          if (queueItems && queueItems.length > 0) {
-            const item = queueItems[0];
-            await processSingleItem(item, targetAccount);
+          if (!queueItems || queueItems.length === 0) {
+            await releaseGlobalLock(targetAccount);
+            continue;
           }
+
+          const item = queueItems[0];
+
+          // 9. Strict URL Deduplication Check: Was this exact URL already published for this account?
+          const { data: existingPub } = await supabase
+            .from('reels_queue')
+            .select('id')
+            .eq('account_id', targetAccount)
+            .eq('url', item.url)
+            .eq('status', 'PUBLISHED')
+            .limit(1);
+
+          if (existingPub && existingPub.length > 0) {
+            console.log(`[${targetAccount}] ⏭️ URL already published previously (ID: ${existingPub[0].id}). Skipping duplicate.`);
+            await supabase.from('reels_queue').update({ status: 'SKIPPED', error_log: 'Duplicate URL already published' }).eq('id', item.id);
+            await releaseGlobalLock(targetAccount);
+            continue;
+          }
+
+          // 10. Immediately reserve schedule and global timestamp so no race condition can occur during FFmpeg render
+          const nextIntervalMins = randFloat(20, 25);
+          const nextPostTime = Date.now() + Math.round(nextIntervalMins * 60 * 1000);
+          scheduledNextPost[targetAccount] = nextPostTime;
+          await S3.send(new PutObjectCommand({ Bucket: bucketName, Key: `next_scheduled_${targetAccount}.txt`, Body: nextPostTime.toString(), ContentType: 'text/plain' })).catch(e => {});
+          await S3.send(new PutObjectCommand({ Bucket: bucketName, Key: 'last_published_global.txt', Body: Date.now().toString(), ContentType: 'text/plain' })).catch(e => {});
+
+          // Process the single claimed item (Global lock released in processSingleItem.finally)
+          await processSingleItem(item, targetAccount);
         }
       } catch (loopErr) {
         console.error(`Error in daemon loop for ${targetAccount}:`, loopErr.message);
+        await releaseGlobalLock(targetAccount).catch(e => {});
       }
     }
 
@@ -1135,4 +1282,5 @@ async function startDaemon() {
 }
 
 startDaemon();
+
 
