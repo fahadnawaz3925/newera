@@ -123,20 +123,30 @@ async function generateCaption(videoUrl, coverPath, config) {
     "Write a short viral Instagram reel caption for a satisfying shoe shine / leather care ASMR video. Include emojis, engaging text, call to follow @buffedboujee, and relevant hashtags (#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare).";
 
   if (apiKeys.length > 0) {
+    const modelsToTry = [
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-latest',
+      'gemini-3.7-flash',
+      'gemini-pro-latest'
+    ];
+
     for (const key of apiKeys) {
-      try {
-        const genAI = new GoogleGenerativeAI(key);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-        const contents = hasCover ? [prompt, fileToGenerativePart(coverPath)] : [prompt];
-        const res = await model.generateContent(contents);
-        let text = res.response?.text()?.trim();
-        if (text) {
-          text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
-          console.log('✅ AI Caption generated successfully.');
-          return text;
+      const genAI = new GoogleGenerativeAI(key);
+      for (const modelName of modelsToTry) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const contents = hasCover ? [prompt, fileToGenerativePart(coverPath)] : [prompt];
+          const res = await model.generateContent(contents);
+          let text = res.response?.text()?.trim();
+          if (text) {
+            text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
+            console.log(`✅ AI Caption generated successfully with ${modelName}.`);
+            return text;
+          }
+        } catch (err) {
+          console.warn(`Gemini model ${modelName} error:`, err.message);
         }
-      } catch (err) {
-        console.warn('Gemini caption generation error:', err.message);
       }
     }
   }
