@@ -98,7 +98,13 @@ const handler = async (event, context) => {
 
       const { count } = await countQuery;
 
-      const rows = urls.map(url => ({ url, status: 'PENDING', account_id: targetAccount }));
+      const baseTime = Date.now();
+      const rows = urls.map((url, idx) => ({ 
+        url, 
+        status: 'PENDING', 
+        account_id: targetAccount,
+        created_at: new Date(baseTime + idx * 1000).toISOString()
+      }));
       const { data, error } = await supabase
         .from('reels_queue')
         .insert(rows);

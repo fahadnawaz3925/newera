@@ -1212,12 +1212,24 @@ async function startDaemon() {
             continue;
           }
 
-          // 8. Claim oldest PENDING item using atomic RPC
-          const { data: queueItems, error: rpcError } = await supabase
-            .rpc('claim_next_queue_item', { p_account_id: targetAccount });
+          // 8. Claim oldest PENDING item in exact FIFO sequential order
+          let claimQuery = supabase
+            .from('reels_queue')
+            .select('*')
+            .eq('status', 'PENDING');
+
+          if (targetAccount === 'account1') {
+            claimQuery = claimQuery.or('account_id.eq.account1,account_id.is.null');
+          } else {
+            claimQuery = claimQuery.eq('account_id', targetAccount);
+          }
+
+          const { data: queueItems, error: claimError } = await claimQuery
+            .order('created_at', { ascending: true })
+            .limit(1);
             
-          if (rpcError) {
-            console.error(`RPC Error for ${targetAccount}:`, rpcError);
+          if (claimError) {
+            console.error(`Claim Error for ${targetAccount}:`, claimError.message);
             await releaseGlobalLock(targetAccount);
             continue;
           }
@@ -1228,31 +1240,17 @@ async function startDaemon() {
           }
 
           const item = queueItems[0];
+          // Mark item as PROCESSING
+          await supabase.from('reels_queue').update({ status: 'PROCESSING' }).eq('id', item.id);
 
-          // 9. Strict URL Deduplication Check: Was this exact URL already published for this account?
-          const { data: existingPub } = await supabase
-            .from('reels_queue')
-            .select('id')
-            .eq('account_id', targetAccount)
-            .eq('url', item.url)
-            .eq('status', 'PUBLISHED')
-            .limit(1);
-
-          if (existingPub && existingPub.length > 0) {
-            console.log(`[${targetAccount}] ⏭️ URL already published previously (ID: ${existingPub[0].id}). Skipping duplicate.`);
-            await supabase.from('reels_queue').update({ status: 'SKIPPED', error_log: 'Duplicate URL already published' }).eq('id', item.id);
-            await releaseGlobalLock(targetAccount);
-            continue;
-          }
-
-          // 10. Immediately reserve schedule and global timestamp so no race condition can occur during FFmpeg render
+          // 9. Immediately reserve schedule and global timestamp so no race condition can occur during FFmpeg render
           const nextIntervalMins = randFloat(20, 25);
           const nextPostTime = Date.now() + Math.round(nextIntervalMins * 60 * 1000);
           scheduledNextPost[targetAccount] = nextPostTime;
           await S3.send(new PutObjectCommand({ Bucket: bucketName, Key: `next_scheduled_${targetAccount}.txt`, Body: nextPostTime.toString(), ContentType: 'text/plain' })).catch(e => {});
           await S3.send(new PutObjectCommand({ Bucket: bucketName, Key: 'last_published_global.txt', Body: Date.now().toString(), ContentType: 'text/plain' })).catch(e => {});
 
-          // Process the single claimed item (Global lock released in processSingleItem.finally)
+          // Process the single claimed item in exact FIFO sequence (Global lock released in processSingleItem.finally)
           await processSingleItem(item, targetAccount);
         }
       } catch (loopErr) {
