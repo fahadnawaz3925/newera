@@ -180,49 +180,50 @@ function generateAntiCopyrightParams(targetAccount, config) {
   if (targetAccount === 'account2') isFlip = true;
   const doMirror = isFlip;
 
-  // Zoom to hide edge watermarks & vary frame
-  const cropX = randInt(2, 6);
-  const cropY = randInt(2, 6);
+  // Zoom to hide edge watermarks & vary frame (subtle 1-3% to preserve maximum sharpness)
+  const cropX = randInt(1, 3);
+  const cropY = randInt(1, 3);
 
-  // Slight color & lighting changes to bypass MD5 and frame hash
-  const brightness = randFloat(-0.04, 0.04);
-  const contrast = randFloat(0.95, 1.05);
-  const saturation = randFloat(1.05, 1.25);
-  const gamma = randFloat(0.95, 1.05);
+  // Slight color & lighting shifts (subtle to protect visual fidelity)
+  const brightness = randFloat(-0.02, 0.02);
+  const contrast = randFloat(0.98, 1.03);
+  const saturation = randFloat(1.02, 1.15);
+  const gamma = randFloat(0.98, 1.02);
   
-  const frameRate = 30; // Enforce 30fps
+  const frameRate = 30; // Standard 30fps for Instagram Reels
 
   // Audio masking
-  const audioSpeedFactor = randFloat(0.98, 1.02);
-  const audioPitchRate = 44100;
+  const audioSpeedFactor = randFloat(0.99, 1.01);
+  const audioPitchRate = 48000;
   const doStereoSwap = Math.random() > 0.5;
-  const silenceMs = randInt(50, 150);
-  const doReverb = Math.random() > 0.5;
-  const bgNoiseMix = randFloat(0.01, 0.03); 
-  const doPhaser = Math.random() > 0.7;
+  const silenceMs = randInt(30, 80);
+  const doReverb = Math.random() > 0.6;
+  const bgNoiseMix = randFloat(0.008, 0.015); 
+  const doPhaser = false; // Disabled to maintain pure studio audio clarity
 
   // Trimming to bypass duration matching
-  const trimStart = randFloat(0.1, 0.4); 
-  const trimEnd = randFloat(0.1, 0.4);
+  const trimStart = randFloat(0.1, 0.3); 
+  const trimEnd = randFloat(0.1, 0.3);
 
   const ptsFactor = 1 / audioSpeedFactor;
 
-  const preset = randPick(['ultrafast', 'superfast', 'fast']);
-  const profile = randPick(['main', 'high']);
+  // Maximum Quality Video & Audio Encoding Parameters
+  const preset = randPick(['medium', 'fast']); // High-quality macroblock search
+  const profile = 'high';                      // H.264 High Profile (best compression/sharpness)
   const tune = 'film';
-  const level = '4.0';
+  const level = '4.2';
 
-  const gopSize = randInt(15, 45); 
+  const gopSize = randInt(30, 60); 
 
-  const videoBitrate = randInt(2000, 4000) + 'k';
-  const maxRate = randInt(4000, 5000) + 'k';
-  const audioBitrate = randPick(['128k', '192k', '256k']);
+  const videoBitrate = randInt(6500, 8500) + 'k'; // High bitrate 6.5 - 8.5 Mbps for crisp 1080p HD
+  const maxRate = randInt(10000, 12000) + 'k';   // Max 10-12 Mbps peak
+  const audioBitrate = '320k';                    // Crystal clear studio audio (320 kbps AAC)
 
-  const noiseStrength = randInt(1, 4);
+  const noiseStrength = randInt(1, 2);           // Ultra-low imperceptible noise
 
-  const lensDistortion = randFloat(-0.01, 0.01);
-  const rotAngle = randFloat(-0.01, 0.01);
-  const fadeDuration = randFloat(0.1, 0.3);
+  const lensDistortion = randFloat(-0.005, 0.005);
+  const rotAngle = randFloat(-0.005, 0.005);
+  const fadeDuration = randFloat(0.1, 0.2);
 
   const device = randPick(DEVICE_PROFILES);
   
@@ -559,19 +560,15 @@ async function processSingleItem(item, targetAccount) {
     const vfParts = [];
 
     // Layer 1: Visual Obfuscation
-    // Crop 2-6% to hide edge artifacts/watermarks
+    // Crop subtle 1-3% to hide edge artifacts/watermarks
     vfParts.push(`crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`);
-    // Scale back to 1080x1920 to maintain exact Reel dimensions
-    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=decrease`);
-    vfParts.push('pad=1080:1920:(ow-iw)/2:(oh-ih)/2');
+    // Scale to 1080x1920 with high-precision Lanczos sinc filter for maximum sharpness
+    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos`);
+    vfParts.push('pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black');
     vfParts.push('setsar=1');
 
     // Layer 1: Random horizontal mirror (50% chance)
     if (params.doMirror) vfParts.push('hflip');
-
-    // Layer 1.5: Minimal Ken Burns effect (Dynamic Zoom)
-    // DISABLED for performance: zoompan is too slow on low-tier VMs.
-    // vfParts.push(`zoompan=z='min(pzoom+0.00010,1.05)':d=1:x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':fps=30:s=1080x1920`);
 
     // Layer 1: Randomized brightness/contrast/saturation/gamma
     vfParts.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
@@ -590,12 +587,12 @@ async function processSingleItem(item, targetAccount) {
     // Layer 6: Branded watermark overlay
     vfParts.push(`drawtext=text='${params.watermarkText}':fontsize=${params.watermarkSize}:fontcolor=white@${params.watermarkOpacity}:x=w-tw-20:y=h-th-20`);
 
-    // Layer 9: Subtle hue shift (rotates colors by 1-3 degrees, imperceptible but defeats color histograms)
-    vfParts.push(`hue=h=${randInt(1, 3)}`);
+    // Layer 9: Subtle hue shift (rotates colors by 1-2 degrees, imperceptible but defeats color histograms)
+    vfParts.push(`hue=h=${randInt(1, 2)}`);
 
     // Layer 10: Subtle Vignette (darkens corners slightly, completely alters edge pixel matrix)
     if (targetAccount !== 'account3') {
-      vfParts.push(`vignette=PI/4+PI/${randInt(15, 30)}`);
+      vfParts.push(`vignette=PI/4+PI/${randInt(18, 32)}`);
     }
 
     // Layer 11: Invisible moving text hash (moves across the screen at 1% opacity, invisible to humans, completely breaks structural similarity algorithms)
@@ -605,8 +602,6 @@ async function processSingleItem(item, targetAccount) {
     // Layer 9: Geometric Distortion (Compression-Aware Adversarial Warp)
     // Micro-rotation (breaks X/Y symmetry). ow/oh forced to 1080x1920 to prevent aspect ratio corruption!
     vfParts.push(`rotate=${params.rotAngle}*PI/180:c=black:ow=1080:oh=1920`);
-    // Lens Correction (DISABLED for performance: incredibly slow pixel mapping)
-    // vfParts.push(`lenscorrection=k1=${params.lensDistortion}:k2=0.0`);
 
     // Force SAR to 1:1 and yuv420p output (prevents concat errors)
     vfParts.push('setsar=1');
@@ -624,13 +619,13 @@ async function processSingleItem(item, targetAccount) {
 
     // Layer 2: Highpass + lowpass (always applied, prevents DC offset & ultrasonic noise)
     afParts.push('highpass=f=35');
-    afParts.push('lowpass=f=16500');
+    afParts.push('lowpass=f=17500');
 
     // Layer 2: EQ boost (account-specific frequency)
     if (targetAccount === 'account2') {
-      afParts.push(`equalizer=f=${randInt(15000, 17000)}:width_type=h:width=1000:g=${randFloat(1.0, 2.0).toFixed(1)}`);
+      afParts.push(`equalizer=f=${randInt(15000, 17000)}:width_type=h:width=1000:g=${randFloat(0.8, 1.5).toFixed(1)}`);
     } else {
-      afParts.push(`equalizer=f=${randInt(13000, 15000)}:width_type=h:width=1000:g=${randFloat(0.8, 1.5).toFixed(1)}`);
+      afParts.push(`equalizer=f=${randInt(13000, 15000)}:width_type=h:width=1000:g=${randFloat(0.5, 1.2).toFixed(1)}`);
     }
 
     // Layer 2: Stereo channel swap (50% chance)
@@ -640,12 +635,7 @@ async function processSingleItem(item, targetAccount) {
 
     // Layer 2: Subtle reverb (40% chance)
     if (params.doReverb) {
-      afParts.push(`aecho=0.8:0.88:${randInt(4, 8)}:${randFloat(0.25, 0.45).toFixed(2)}`);
-    }
-
-    // Layer 10: Advanced Audio Scrambling (Phaser)
-    if (params.doPhaser) {
-      afParts.push(`aphaser=in_gain=0.4:out_gain=0.6:delay=${randFloat(3, 5).toFixed(1)}:decay=${randFloat(0.1, 0.3).toFixed(2)}:speed=${randFloat(0.4, 0.7).toFixed(2)}`);
+      afParts.push(`aecho=0.8:0.88:${randInt(4, 8)}:${randFloat(0.20, 0.35).toFixed(2)}`);
     }
 
     // Layer 10: Smooth fade-in
@@ -682,8 +672,8 @@ async function processSingleItem(item, targetAccount) {
 
     ffmpegArgs.push(
       '-i', inputPath,
-      // Layer 8: Background noise (faint rain/brown noise at 2.5% volume)
-      '-f', 'lavfi', '-i', 'anoisesrc=color=brown:r=44100:amplitude=0.025',
+      // Layer 8: Background noise (imperceptible brown noise at 1.2% volume)
+      '-f', 'lavfi', '-i', 'anoisesrc=color=brown:r=48000:amplitude=0.012',
       '-map_metadata', '-1',                        // Strip ALL original metadata
       // Layer 5: Randomized device-spoofed metadata
       '-metadata', `title=${params.metaTitle}`,
@@ -701,20 +691,24 @@ async function processSingleItem(item, targetAccount) {
       '-filter_complex', `[0:a]${audioFilterChain}[a1];[a1][1:a]amix=inputs=2:duration=first[aout]`,
       '-map', '0:v',
       '-map', '[aout]',
-      // Layer 4: Randomized encoding parameters
+      // Layer 4: Highest Quality Encoding parameters
       '-r', params.frameRate,
       '-c:v', 'libx264',
       '-preset', params.preset,
       '-profile:v', params.profile,
-      '-tune', params.tune,                           // Better quality for real footage
-      '-level', params.level,                          // Max mobile compatibility
+      '-tune', params.tune,
+      '-level', params.level,
+      '-color_primaries', 'bt709',
+      '-color_trc', 'bt709',
+      '-colorspace', 'bt709',
       '-threads', '2',
       '-b:v', params.videoBitrate,
       '-maxrate', params.maxRate,
       '-bufsize', '24M',
-      '-g', String(params.gopSize),                  // Layer 3: Random GOP size
+      '-g', String(params.gopSize),
       '-c:a', 'aac',
       '-b:a', params.audioBitrate,
+      '-ar', '48000',
       '-movflags', '+faststart',
       outputPath
     );
