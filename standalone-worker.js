@@ -184,11 +184,11 @@ function generateAntiCopyrightParams(targetAccount, config) {
   const cropX = randInt(1, 3);
   const cropY = randInt(1, 3);
 
-  // Slight color & lighting shifts (subtle to protect visual fidelity)
-  const brightness = randFloat(-0.02, 0.02);
-  const contrast = randFloat(0.98, 1.03);
-  const saturation = randFloat(1.02, 1.15);
-  const gamma = randFloat(0.98, 1.02);
+  // Bright, clean lighting (positive brightness and rich contrast for account2 to eliminate any darkness)
+  const brightness = targetAccount === 'account2' ? randFloat(0.015, 0.040) : randFloat(-0.01, 0.02);
+  const contrast = targetAccount === 'account2' ? randFloat(1.02, 1.06) : randFloat(0.98, 1.03);
+  const saturation = targetAccount === 'account2' ? randFloat(1.08, 1.20) : randFloat(1.02, 1.15);
+  const gamma = targetAccount === 'account2' ? randFloat(1.00, 1.04) : randFloat(0.98, 1.02);
   
   const frameRate = 30; // Standard 30fps for Instagram Reels
 
@@ -562,9 +562,9 @@ async function processSingleItem(item, targetAccount) {
     // Layer 1: Visual Obfuscation
     // Crop subtle 1-3% to hide edge artifacts/watermarks
     vfParts.push(`crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`);
-    // Scale to 1080x1920 with high-precision Lanczos sinc filter for maximum sharpness
-    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos`);
-    vfParts.push('pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black');
+    // Scale and crop to fill the full 1080x1920 9:16 vertical Reel frame with ZERO black letterbox bars!
+    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos`);
+    vfParts.push('crop=1080:1920');
     vfParts.push('setsar=1');
 
     // Layer 1: Random horizontal mirror (50% chance)
@@ -590,8 +590,8 @@ async function processSingleItem(item, targetAccount) {
     // Layer 9: Subtle hue shift (rotates colors by 1-2 degrees, imperceptible but defeats color histograms)
     vfParts.push(`hue=h=${randInt(1, 2)}`);
 
-    // Layer 10: Subtle Vignette (darkens corners slightly, completely alters edge pixel matrix)
-    if (targetAccount !== 'account3') {
+    // Layer 10: Vignette (DISABLED for account2 and account3 to prevent edge shadow/darkness)
+    if (targetAccount !== 'account2' && targetAccount !== 'account3') {
       vfParts.push(`vignette=PI/4+PI/${randInt(18, 32)}`);
     }
 
@@ -599,9 +599,8 @@ async function processSingleItem(item, targetAccount) {
     const invisibleHash = Math.random().toString(36).substring(2, 10);
     vfParts.push(`drawtext=text='${invisibleHash}':fontsize=50:fontcolor=white@0.01:x=w*t/15:y=h*t/20`);
 
-    // Layer 9: Geometric Distortion (Compression-Aware Adversarial Warp)
-    // Micro-rotation (breaks X/Y symmetry). ow/oh forced to 1080x1920 to prevent aspect ratio corruption!
-    vfParts.push(`rotate=${params.rotAngle}*PI/180:c=black:ow=1080:oh=1920`);
+    // Layer 9: Geometric Distortion (Micro-rotation with no black borders)
+    vfParts.push(`rotate=${params.rotAngle}*PI/180:ow=1080:oh=1920`);
 
     // Force SAR to 1:1 and yuv420p output (prevents concat errors)
     vfParts.push('setsar=1');
@@ -740,61 +739,52 @@ async function processSingleItem(item, targetAccount) {
       }
     }
 
-    // ─── Branded Intro/Outro Frames ───
-    console.log(`🎬 Adding branded intro/outro frames...`);
-    const introOutroPath = path.join(tempDir, `${fileId}_branded.mp4`);
-    try {
-      const introDuration = 0.5;
-      const outroDuration = 0.8;
-      let introText, outroText, accentColor;
+    // ─── Branded Intro/Outro Frames (Only for account1; disabled for account2 & account3 to eliminate black intro frames) ───
+    if (targetAccount === 'account1') {
+      console.log(`🎬 Adding branded intro/outro frames for account1...`);
+      const introOutroPath = path.join(tempDir, `${fileId}_branded.mp4`);
+      try {
+        const introDuration = 0.5;
+        const outroDuration = 0.8;
+        const introText = '@faith.canvas.99';
+        const outroText = 'Follow @faith.canvas.99 for daily reminders';
 
-      if (targetAccount === 'account2') {
-        introText = '@buffedboujee';
-        outroText = 'Follow @buffedboujee for more';
-        accentColor = '#D4A574';
-      } else if (targetAccount === 'account3') {
-        introText = '@house.of.paws38';
-        outroText = 'Follow @house.of.paws38 for your daily dose of cuteness';
-        accentColor = '#FFB6C1';
-      } else {
-        introText = '@faith.canvas.99';
-        outroText = 'Follow @faith.canvas.99 for daily reminders';
-        accentColor = '#2E7D32';
+        // Build intro/outro with color source + text overlay, then concat with main video
+        await execa(ffmpegBinary, [
+          '-y',
+          // Input 0: Intro
+          '-f', 'lavfi', '-t', String(introDuration),
+          '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2,setsar=1`,
+          // Input 1: Intro silent audio
+          '-f', 'lavfi', '-t', String(introDuration),
+          '-i', 'anullsrc=r=44100:cl=stereo',
+          // Input 2: Main video
+          '-i', outputPath,
+          // Input 3: Outro
+          '-f', 'lavfi', '-t', String(outroDuration),
+          '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3,setsar=1`,
+          // Input 4: Outro silent audio
+          '-f', 'lavfi', '-t', String(outroDuration),
+          '-i', 'anullsrc=r=44100:cl=stereo',
+          // Concat intro + main + outro
+          '-filter_complex',
+          `[0:v]fps=${params.frameRate}[v0]; [2:v]fps=${params.frameRate}[v1]; [3:v]fps=${params.frameRate}[v2]; [v0][1:a][v1][2:a][v2][4:a]concat=n=3:v=1:a=1[outv][outa]`,
+          '-map', '[outv]', '-map', '[outa]',
+          '-c:v', 'libx264', '-preset', 'ultrafast', '-profile:v', 'main',
+          '-c:a', 'aac', '-b:a', params.audioBitrate,
+          '-movflags', '+faststart', '-b:v', '6M', '-maxrate', '8M', '-bufsize', '12M',
+          introOutroPath
+        ]);
+
+        // Replace output with branded version
+        fs.renameSync(introOutroPath, outputPath);
+        console.log(`  ✅ Branded intro (${introDuration}s) + outro (${outroDuration}s) added for account1!`);
+      } catch (brandErr) {
+        console.warn(`  ⚠️ Intro/outro failed (non-critical, using video without):`, brandErr.message);
+        try { fs.unlinkSync(introOutroPath); } catch (e) { }
       }
-
-      // Build intro/outro with color source + text overlay, then concat with main video
-      await execa(ffmpegBinary, [
-        '-y',
-        // Input 0: Intro (solid dark frame with text)
-        '-f', 'lavfi', '-t', String(introDuration),
-        '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2,setsar=1`,
-        // Input 1: Intro silent audio
-        '-f', 'lavfi', '-t', String(introDuration),
-        '-i', 'anullsrc=r=44100:cl=stereo',
-        // Input 2: Main video
-        '-i', outputPath,
-        // Input 3: Outro (solid dark frame with text)
-        '-f', 'lavfi', '-t', String(outroDuration),
-        '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3,setsar=1`,
-        // Input 4: Outro silent audio
-        '-f', 'lavfi', '-t', String(outroDuration),
-        '-i', 'anullsrc=r=44100:cl=stereo',
-        // Concat intro + main + outro
-        '-filter_complex',
-        `[0:v]fps=${params.frameRate}[v0]; [2:v]fps=${params.frameRate}[v1]; [3:v]fps=${params.frameRate}[v2]; [v0][1:a][v1][2:a][v2][4:a]concat=n=3:v=1:a=1[outv][outa]`,
-        '-map', '[outv]', '-map', '[outa]',
-        '-c:v', 'libx264', '-preset', 'ultrafast', '-profile:v', 'main',
-        '-c:a', 'aac', '-b:a', params.audioBitrate,
-        '-movflags', '+faststart', '-b:v', '6M', '-maxrate', '8M', '-bufsize', '12M',
-        introOutroPath
-      ]);
-
-      // Replace output with branded version
-      fs.renameSync(introOutroPath, outputPath);
-      console.log(`  ✅ Branded intro (${introDuration}s) + outro (${outroDuration}s) added!`);
-    } catch (brandErr) {
-      console.warn(`  ⚠️ Intro/outro failed (non-critical, using video without):`, brandErr.message);
-      try { fs.unlinkSync(introOutroPath); } catch (e) { }
+    } else {
+      console.log(`🎬 Clean start for ${targetAccount} (zero black frames)...`);
     }
 
     // Touch file modification timestamps to mirror fresh mobile capture
@@ -887,6 +877,7 @@ async function processSingleItem(item, targetAccount) {
       video_url: publicVideoUrl,
       caption: caption,
       thumb_offset: thumbOffsetMs,
+      share_to_feed: 'true',
       access_token: PAGE_ACCESS_TOKEN
     };
     if (publicCoverUrl) metaPayload.cover_url = publicCoverUrl;

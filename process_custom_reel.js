@@ -241,8 +241,8 @@ async function main() {
 
     const vfParts = [
       `crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`,
-      `scale=1080:1920:force_original_aspect_ratio=decrease`,
-      `pad=1080:1920:(ow-iw)/2:(oh-ih)/2`,
+      `scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos`,
+      `crop=1080:1920`,
       'setsar=1'
     ];
     if (params.doMirror) vfParts.push('hflip');
@@ -251,11 +251,10 @@ async function main() {
     if (params.colorGrade) vfParts.push(params.colorGrade);
     vfParts.push(`setpts=PTS*${params.ptsFactor}`);
     vfParts.push(`drawtext=text='${params.watermarkText}':fontsize=${params.watermarkSize}:fontcolor=white@${params.watermarkOpacity}:x=w-tw-20:y=h-th-20`);
-    vfParts.push(`hue=h=${randInt(1, 3)}`);
-    vfParts.push(`vignette=PI/4+PI/${randInt(15, 30)}`);
+    vfParts.push(`hue=h=${randInt(1, 2)}`);
     const invisibleHash = Math.random().toString(36).substring(2, 10);
     vfParts.push(`drawtext=text='${invisibleHash}':fontsize=50:fontcolor=white@0.01:x=w*t/15:y=h*t/20`);
-    vfParts.push(`rotate=${params.rotAngle}*PI/180:c=black:ow=1080:oh=1920`);
+    vfParts.push(`rotate=${params.rotAngle}*PI/180:ow=1080:oh=1920`);
     vfParts.push('setsar=1');
     vfParts.push('format=yuv420p');
 
@@ -415,6 +414,7 @@ async function main() {
       video_url: publicVideoUrl,
       caption: caption,
       thumb_offset: thumbOffsetMs,
+      share_to_feed: 'true',
       access_token: PAGE_ACCESS_TOKEN
     };
     if (publicCoverUrl) metaPayload.cover_url = publicCoverUrl;
