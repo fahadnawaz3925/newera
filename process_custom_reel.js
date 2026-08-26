@@ -116,11 +116,32 @@ function fileToGenerativePart(filePath, mimeType = 'image/jpeg') {
   };
 }
 
+function cleanAndSanitizeCaption(rawText) {
+  if (!rawText) return '';
+  let text = rawText.trim();
+  if (/option\s*1\b/i.test(text)) {
+    const optMatch = text.match(/(?:(?:\*{1,3}|#{1,6})?\s*Option\s*1[^\n]*\n+)([\s\S]*?)(?=(?:\*{1,3}|#{1,6})?\s*Option\s*2\b|\Z)/i);
+    if (optMatch && optMatch[1] && optMatch[1].trim().length > 30) {
+      text = optMatch[1].trim();
+    }
+  }
+  text = text.replace(/^(?:Here (?:is|are)[^\n]*|Sure[^\n]*|Certainly[^\n]*|Depending on the vibe[^\n]*|Caption:?)[^\n]*\n+/im, '');
+  text = text.replace(/^(?:Here (?:is|are)[^\n]*|Sure[^\n]*|Certainly[^\n]*|Depending on the vibe[^\n]*|Caption:?)[^\n]*\n+/im, '');
+  text = text.replace(/^\s*(?:\*{1,3}|#{1,6})\s*(?:Hook|Caption|Description|Body|Call to Action|CTA|Hashtags|Option \d+)[^\n]*\n+/gim, '');
+  text = text.replace(/\*\*(?:Hook|Caption|Description|Body|Call to Action|CTA|Hashtags):\*\*\s*/gi, '');
+  text = text.replace(/\n+(?:Hope this helps|Let me know|Enjoy|Feel free to ask)[^\n]*$/i, '');
+  text = text.replace(/```[\s\S]*?```/g, '').replace(/^#{1,6}\s+/gm, '').trim();
+  text = text.replace(/\s*[-=_]{3,}\s*$/g, '').trim();
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
+
 async function generateCaption(videoUrl, coverPath, config) {
   const apiKeys = [process.env.GEMINI_API_KEY_1, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY].filter(Boolean);
   const hasCover = coverPath && fs.existsSync(coverPath);
-  const prompt = (config && config.caption_prompt) || 
+  let prompt = (config && config.caption_prompt) || 
     "Write a short viral Instagram reel caption for a satisfying shoe shine / leather care ASMR video. Include emojis, engaging text, call to follow @buffedboujee, and relevant hashtags (#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare).";
+  prompt += "\n\nCRITICAL OUTPUT REQUIREMENT: Output EXACTLY ONE caption ready to post immediately. DO NOT provide options, choices, or commentary. Start directly with the hook line.";
 
   if (apiKeys.length > 0) {
     const modelsToTry = [
@@ -130,18 +151,25 @@ async function generateCaption(videoUrl, coverPath, config) {
       'gemini-3.1-flash-lite'
     ];
 
+    const systemInstruction = "You are an expert viral social media manager. Output EXACTLY ONE final, ready-to-publish Instagram Reel caption. NEVER output multiple options (NO 'Option 1', 'Option 2'). NEVER include preamble, conversational greetings, or explanations. Start directly with the hook line.";
+
     for (const key of apiKeys) {
       const genAI = new GoogleGenerativeAI(key);
       for (const modelName of modelsToTry) {
         try {
-          const model = genAI.getGenerativeModel({ model: modelName });
+          const model = genAI.getGenerativeModel({ 
+            model: modelName,
+            systemInstruction: systemInstruction
+          });
           const contents = hasCover ? [prompt, fileToGenerativePart(coverPath)] : [prompt];
           const res = await model.generateContent(contents);
           let text = res.response?.text()?.trim();
           if (text) {
-            text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
-            console.log(`✅ AI Caption generated successfully with ${modelName}.`);
-            return text;
+            text = cleanAndSanitizeCaption(text);
+            if (text && text.length > 20) {
+              console.log(`✅ AI Caption generated successfully with ${modelName}.`);
+              return text;
+            }
           }
         } catch (err) {
           console.warn(`Gemini model ${modelName} error:`, err.message);

@@ -278,6 +278,42 @@ function fileToGenerativePart(filePath, mimeType = 'image/jpeg') {
   };
 }
 
+// Clean and sanitize Gemini caption output to remove conversational preamble, multi-options, and markdown artifacts
+function cleanAndSanitizeCaption(rawText, targetAccount) {
+  if (!rawText) return '';
+  let text = rawText.trim();
+
+  // 1. If Gemini output multiple options (e.g. "**Option 1", "Option 1:", "### Option 1")
+  // Extract ONLY Option 1 and discard the rest!
+  if (/option\s*1\b/i.test(text)) {
+    const optMatch = text.match(/(?:(?:\*{1,3}|#{1,6})?\s*Option\s*1[^\n]*\n+)([\s\S]*?)(?=(?:\*{1,3}|#{1,6})?\s*Option\s*2\b|\Z)/i);
+    if (optMatch && optMatch[1] && optMatch[1].trim().length > 30) {
+      text = optMatch[1].trim();
+    }
+  }
+
+  // 2. Remove conversational preamble
+  text = text.replace(/^(?:Here (?:is|are)[^\n]*|Sure[^\n]*|Certainly[^\n]*|Depending on the vibe[^\n]*|Caption:?)[^\n]*\n+/im, '');
+  text = text.replace(/^(?:Here (?:is|are)[^\n]*|Sure[^\n]*|Certainly[^\n]*|Depending on the vibe[^\n]*|Caption:?)[^\n]*\n+/im, '');
+
+  // 3. Remove markdown headers like **Hook:**, **Caption:**, **Hashtags:**
+  text = text.replace(/^\s*(?:\*{1,3}|#{1,6})\s*(?:Hook|Caption|Description|Body|Call to Action|CTA|Hashtags|Option \d+)[^\n]*\n+/gim, '');
+  text = text.replace(/\*\*(?:Hook|Caption|Description|Body|Call to Action|CTA|Hashtags):\*\*\s*/gi, '');
+
+  // 4. Remove conversational outro
+  text = text.replace(/\n+(?:Hope this helps|Let me know|Enjoy|Feel free to ask)[^\n]*$/i, '');
+
+  // 5. Strip code blocks and markdown # headers (require space after # so hashtags #LikeThis are kept intact!)
+  text = text.replace(/```[\s\S]*?```/g, '').replace(/^#{1,6}\s+/gm, '').trim();
+
+  // 6. Strip trailing horizontal dividers (e.g. ---, ___)
+  text = text.replace(/\s*[-=_]{3,}\s*$/g, '').trim();
+
+  // 7. Normalize multi newlines
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
+
 // AI Caption Generator with Retry & Dynamic Video Context Fallback
 async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = null, videoMetadata = null, config = null) {
   const apiKeys = [
@@ -311,6 +347,9 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
     prompt = "Write a viral Instagram reel caption for this video. Use emojis and hashtags.";
   }
 
+  // Explicit instruction appended to ensure single caption
+  prompt += "\n\nCRITICAL OUTPUT REQUIREMENT: Output EXACTLY ONE caption ready to post immediately. DO NOT provide options, choices, or commentary. Start directly with the hook line.";
+
   if (apiKeys.length > 0) {
     const modelsToTry = [
       'gemini-3.6-flash',
@@ -319,6 +358,8 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
       'gemini-3.1-flash-lite'
     ];
 
+    const systemInstruction = "You are an expert viral social media manager. Output EXACTLY ONE final, ready-to-publish Instagram Reel caption. NEVER output multiple options (NO 'Option 1', 'Option 2'). NEVER include preamble, conversational greetings, or explanations (NO 'Here is a caption', 'Sure!', 'Depending on the vibe'). Start directly with the hook line.";
+
     for (const geminiKey of apiKeys) {
       const genAI = new GoogleGenerativeAI(geminiKey);
       
@@ -326,7 +367,10 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
             console.log(`Attempting visual caption generation with model: ${modelName} (Attempt ${attempt}) for ${targetAccount}...`);
-            const model = genAI.getGenerativeModel({ model: modelName });
+            const model = genAI.getGenerativeModel({ 
+              model: modelName,
+              systemInstruction: systemInstruction
+            });
             const contents = hasCoverImage
               ? [prompt, fileToGenerativePart(coverPath)]
               : [prompt];
@@ -334,9 +378,11 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
             const result = await model.generateContent(contents);
             let text = result.response?.text()?.trim();
             if (text) {
-              text = text.replace(/^#+\s*/gm, '').replace(/```[\s\S]*?```/g, '').trim();
-              console.log(`Caption successfully generated using model: ${modelName}`);
-              return text;
+              text = cleanAndSanitizeCaption(text, targetAccount);
+              if (text && text.length > 20) {
+                console.log(`Caption successfully generated and sanitized using model: ${modelName}`);
+                return text;
+              }
             }
           } catch (err) {
             console.warn(`Model ${modelName} attempt ${attempt} failed for ${targetAccount}:`, err.message);
