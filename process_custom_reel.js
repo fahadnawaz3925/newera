@@ -132,6 +132,10 @@ function cleanAndSanitizeCaption(rawText) {
   text = text.replace(/\n+(?:Hope this helps|Let me know|Enjoy|Feel free to ask)[^\n]*$/i, '');
   text = text.replace(/```[\s\S]*?```/g, '').replace(/^#{1,6}\s+/gm, '').trim();
   text = text.replace(/\s*[-=_]{3,}\s*$/g, '').trim();
+  text = text.replace(/\[\s*\d+(\.\d+)?[KMBkmb]?[\s_-]*views?\s*\]/gi, '');
+  text = text.replace(/\b\d+(\.\d+)?[KMBkmb]?\s*views?\b/gi, '');
+  text = text.replace(/(?:video|reel|clip|part|rank)\s*#?\s*\d+\b/gi, '');
+  text = text.replace(/^\d+[\s_+%-]+/gm, '');
   text = text.replace(/\n{3,}/g, '\n\n');
   return text.trim();
 }
@@ -140,18 +144,20 @@ async function generateCaption(videoUrl, coverPath, config) {
   const apiKeys = [process.env.GEMINI_API_KEY_1, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY].filter(Boolean);
   const hasCover = coverPath && fs.existsSync(coverPath);
   let prompt = (config && config.caption_prompt) || 
-    "Write a short viral Instagram reel caption for a satisfying shoe shine / leather care ASMR video. Include emojis, engaging text, call to follow @buffedboujee, and relevant hashtags (#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare).";
-  prompt += "\n\nCRITICAL OUTPUT REQUIREMENT: Output EXACTLY ONE caption ready to post immediately. DO NOT provide options, choices, or commentary. Start directly with the hook line.";
+    "Write a captivating viral Instagram reel caption for a luxury shoe shine / leather care ASMR video. Highlight the crisp sound and mirror shine reflection. Include call to follow @buffedboujee and trending ASMR hashtags (#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds).";
+  prompt += "\n\nCRITICAL OUTPUT REQUIREMENT: Output EXACTLY ONE caption ready to post immediately. DO NOT mention video numbers or view counts. DO NOT provide options, choices, or commentary. Start directly with the hook line.";
 
   if (apiKeys.length > 0) {
     const modelsToTry = [
+      'gemini-3.7-flash',
       'gemini-3.6-flash',
       'gemini-3.5-flash',
       'gemini-3.5-flash-lite',
-      'gemini-3.1-flash-lite'
+      'gemini-flash-lite-latest',
+      'gemini-flash-latest'
     ];
 
-    const systemInstruction = "You are an expert viral social media manager. Output EXACTLY ONE final, ready-to-publish Instagram Reel caption. NEVER output multiple options (NO 'Option 1', 'Option 2'). NEVER include preamble, conversational greetings, or explanations. Start directly with the hook line.";
+    const systemInstruction = "You are an expert viral social media manager. Output EXACTLY ONE final, ready-to-publish Instagram Reel caption. NEVER output video numbers or view counts. NEVER output multiple options. NEVER include preamble or greetings. Start directly with the hook line.";
 
     for (const key of apiKeys) {
       const genAI = new GoogleGenerativeAI(key);
@@ -178,7 +184,7 @@ async function generateCaption(videoUrl, coverPath, config) {
     }
   }
 
-  return `👞✨ UNBELIEVABLE Shoe Shine Transformation!\n\nTurn your sound UP for this satisfying leather restoration 🎧🔥 Watch the magic happen from dusty to a flawless mirror shine.\n\nFollow @buffedboujee for daily satisfying ASMR content! 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Restoration`;
+  return `Turn your sound UP for this transformation 🎧🔥\n\nWatch this deeply satisfying transformation — worn leather brought back to life with a flawless mirror shine. The crisp ASMR sounds are pure therapy 🤌✨\n\nRate this shine from 1 to 10! 👇\nFollow @buffedboujee for more satisfying content 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds`;
 }
 
 async function main() {

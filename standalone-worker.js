@@ -278,6 +278,51 @@ function fileToGenerativePart(filePath, mimeType = 'image/jpeg') {
   };
 }
 
+// Helper for cleaning video titles / filenames (strips view numbers, video numbers, and raw scrapers IDs)
+function cleanVideoTitle(rawTitle) {
+  if (!rawTitle) return '';
+  let title = rawTitle;
+  try {
+    title = decodeURIComponent(title);
+  } catch (e) {}
+
+  // 1. Remove file extensions (e.g. .mp4, .mkv)
+  title = title.replace(/\.[a-zA-Z0-9]+$/i, '');
+  title = title.replace(/^.*[\\\/]/, '');
+
+  // 2. Remove trailing bracket IDs (e.g. "_[Tv5SuU9dw9U]", "[Tv5SuU9dw9U]", "_[xyz]")
+  title = title.replace(/[_-]?\[[a-zA-Z0-9_-]+\]/gi, '');
+  title = title.replace(/\[[a-zA-Z0-9_-]+\]/gi, '');
+
+  // 3. Remove leading numbers / prefixes (e.g. "001_", "082_", "145_", "15+awesome_cat_reel_")
+  title = title.replace(/^\d+[\s_+%-]*/, '');
+  title = title.replace(/^\d+[a-zA-Z_]+[\s_+%-]*/, '');
+
+  // 4. Remove view count brackets and mentions (e.g. "[145.0M_views]", "[917.0K_views]", "145M views", "917K views")
+  title = title.replace(/\[\s*\d+(\.\d+)?[KMBkmb]?[\s_-]*views?\s*\]/gi, '');
+  title = title.replace(/\(\s*\d+(\.\d+)?[KMBkmb]?[\s_-]*views?\s*\)/gi, '');
+  title = title.replace(/\b\d+(\.\d+)?[KMBkmb]?\s*views?\b/gi, '');
+  title = title.replace(/\b\d+(\.\d+)?[KMBkmb]\b/gi, '');
+
+  // 5. Remove any leftover brackets and IDs
+  title = title.replace(/\[.*?\]/g, '');
+  title = title.replace(/\(.*?\)/g, '');
+
+  // 6. Remove hashtags embedded in title
+  title = title.replace(/#[a-zA-Z0-9_]+/g, '');
+
+  // 7. Clean separator characters (|, l, _, -) and normalize spaces
+  title = title.replace(/[|l_]+/g, ' ');
+  title = title.replace(/[-]{2,}/g, ' ');
+  title = title.replace(/\s+/g, ' ').trim();
+
+  // 8. Strip leading/trailing non-alphanumeric junk
+  title = title.replace(/^[^a-zA-Z0-9\u00C0-\u024F\u0600-\u06FF]+/, '').trim();
+  title = title.replace(/[^a-zA-Z0-9\u00C0-\u024F\u0600-\u06FF\s.!?]+$/, '').trim();
+
+  return title;
+}
+
 // Clean and sanitize Gemini caption output to remove conversational preamble, multi-options, and markdown artifacts
 function cleanAndSanitizeCaption(rawText, targetAccount) {
   if (!rawText) return '';
@@ -309,7 +354,13 @@ function cleanAndSanitizeCaption(rawText, targetAccount) {
   // 6. Strip trailing horizontal dividers (e.g. ---, ___)
   text = text.replace(/\s*[-=_]{3,}\s*$/g, '').trim();
 
-  // 7. Normalize multi newlines
+  // 7. STRICTLY REMOVE video numbers and view counts (e.g. "082_[917.0K_views]", "Video #1", "145M views", "[145.0M_views]")
+  text = text.replace(/\[\s*\d+(\.\d+)?[KMBkmb]?[\s_-]*views?\s*\]/gi, '');
+  text = text.replace(/\b\d+(\.\d+)?[KMBkmb]?\s*views?\b/gi, '');
+  text = text.replace(/(?:video|reel|clip|part|rank)\s*#?\s*\d+\b/gi, '');
+  text = text.replace(/^\d+[\s_+%-]+/gm, '');
+
+  // 8. Normalize multi newlines
   text = text.replace(/\n{3,}/g, '\n\n');
   return text.trim();
 }
@@ -324,18 +375,28 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
   const hasCoverImage = coverPath && fs.existsSync(coverPath);
 
   let videoContext = '';
-  let videoTitleClean = '';
-  let videoDescClean = '';
+  let rawTitle = '';
+  if (videoMetadata && videoMetadata.title && !videoMetadata.title.startsWith('Video by')) {
+    rawTitle = videoMetadata.title;
+  } else if (videoUrl) {
+    const urlClean = videoUrl.split('?')[0];
+    const baseName = path.basename(urlClean);
+    if (baseName && !baseName.startsWith('v/')) {
+      rawTitle = baseName;
+    }
+  }
 
-  if (videoMetadata) {
-    if (videoMetadata.title && !videoMetadata.title.startsWith('Video by')) {
-      videoTitleClean = videoMetadata.title.trim();
-      videoContext += `\nVideo Title: "${videoTitleClean}"`;
-    }
-    if (videoMetadata.description && videoMetadata.description.trim().length > 10) {
-      videoDescClean = videoMetadata.description.slice(0, 400).trim();
-      videoContext += `\nVideo Description: "${videoDescClean}"`;
-    }
+  const videoTitleClean = cleanVideoTitle(rawTitle);
+  let videoDescClean = '';
+  if (videoMetadata && videoMetadata.description && videoMetadata.description.trim().length > 10) {
+    videoDescClean = cleanVideoTitle(videoMetadata.description.slice(0, 400));
+  }
+
+  if (videoTitleClean && videoTitleClean.length > 3) {
+    videoContext += `\nVideo Topic / Focus: "${videoTitleClean}"`;
+  }
+  if (videoDescClean && videoDescClean.length > 5) {
+    videoContext += `\nVideo Context: "${videoDescClean}"`;
   }
 
   let prompt;
@@ -343,22 +404,38 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
     prompt = config.caption_prompt;
     if (videoContext) prompt = `${videoContext}\n\n${prompt}`;
   } else {
-    // Fallback if DB fails
-    prompt = "Write a viral Instagram reel caption for this video. Use emojis and hashtags.";
+    // Account-specific default prompts if DB config is unavailable
+    if (targetAccount === 'account2') {
+      prompt = `You are an elite viral social media writer for @buffedboujee — an ASMR Shoe Shine & Leather Craftsmanship page.
+Write ONE captivating, scroll-stopping Instagram Reel caption celebrating the sensory ASMR shoe shine experience.
+CORE RULES:
+- Highlight the sensory satisfaction: crisp horsehair brush sounds, rich leather lather, hypnotic buffing, and mirror shine reflection.
+- NEVER mention video numbers, ranks, or view counts.
+- CTA: "Rate this shine from 1 to 10! 👇\nFollow @buffedboujee for more satisfying content 👞✨"
+- 8-10 trending hashtags (#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds).
+Start directly with the hook line.`;
+    } else if (targetAccount === 'account3') {
+      prompt = `Write a wholesome, viral Instagram reel caption for @house.of.paws38 (cute pets). Use emojis and hashtags. Start directly with the hook line.`;
+    } else {
+      prompt = `Write a viral, heartfelt Islamic reflection Instagram reel caption for @faith.canvas.99. Use emojis and hashtags. Start directly with the hook line.`;
+    }
+    if (videoContext) prompt = `${videoContext}\n\n${prompt}`;
   }
 
-  // Explicit instruction appended to ensure single caption
-  prompt += "\n\nCRITICAL OUTPUT REQUIREMENT: Output EXACTLY ONE caption ready to post immediately. DO NOT provide options, choices, or commentary. Start directly with the hook line.";
+  // Explicit instruction appended to ensure single caption with no numbers/views
+  prompt += "\n\nCRITICAL OUTPUT REQUIREMENT: Output EXACTLY ONE caption ready to post immediately. DO NOT mention video numbers or view counts. DO NOT provide options, choices, or commentary. Start directly with the hook line.";
 
   if (apiKeys.length > 0) {
     const modelsToTry = [
+      'gemini-3.7-flash',
       'gemini-3.6-flash',
       'gemini-3.5-flash',
       'gemini-3.5-flash-lite',
-      'gemini-3.1-flash-lite'
+      'gemini-flash-lite-latest',
+      'gemini-flash-latest'
     ];
 
-    const systemInstruction = "You are an expert viral social media manager. Output EXACTLY ONE final, ready-to-publish Instagram Reel caption. NEVER output multiple options (NO 'Option 1', 'Option 2'). NEVER include preamble, conversational greetings, or explanations (NO 'Here is a caption', 'Sure!', 'Depending on the vibe'). Start directly with the hook line.";
+    const systemInstruction = "You are an expert viral social media manager. Output EXACTLY ONE final, ready-to-publish Instagram Reel caption. NEVER output video numbers (e.g. '001', 'video #1') or view counts (e.g. '145M views'). NEVER output multiple options (NO 'Option 1', 'Option 2'). NEVER include preamble, conversational greetings, or explanations. Start directly with the hook line.";
 
     for (const geminiKey of apiKeys) {
       const genAI = new GoogleGenerativeAI(geminiKey);
@@ -386,12 +463,12 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
             }
           } catch (err) {
             console.warn(`Model ${modelName} attempt ${attempt} failed for ${targetAccount}:`, err.message);
-            if (err.message.includes('429')) {
-              console.log(`Quota 429 encountered, switching to next model or API key...`);
+            if (err.message.includes('429') || err.message.includes('503') || err.message.includes('not found') || err.message.includes('no longer available')) {
+              console.log(`Model ${modelName} unavailable/quota exceeded, switching to next model or API key...`);
               break; // Break the attempt loop to try the next model or key immediately
             } else {
-              console.log(`Sleeping 3s before retry...`);
-              await sleep(3000);
+              console.log(`Sleeping 2s before retry...`);
+              await sleep(2000);
             }
           }
         }
@@ -399,18 +476,18 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
     }
   }
 
-  // Dynamic Video-Specific Fallback (Never a static generic string!)
+  // Dynamic Video-Specific Fallback (Never include video numbers or view counts!)
   if (targetAccount === 'account2') {
-    const titleLine = videoTitleClean ? `👞✨ ${videoTitleClean}` : `Turn your sound UP for this 🎧🔥`;
-    const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `Watch this satisfying transformation — worn leather brought back to a gorgeous mirror shine. The sounds are everything 🤌`;
-    return `${titleLine}\n\n${descLine}\n\nFollow @buffedboujee for more satisfying content 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning`;
+    const titleHook = videoTitleClean && videoTitleClean.length > 4 ? `Turn your sound UP for this transformation 🎧🔥` : `Turn your sound UP for this 🎧🔥`;
+    const descLine = `Watch this deeply satisfying transformation — worn leather brought back to life with a flawless mirror shine. The crisp ASMR sounds are pure therapy 🤌✨`;
+    return `${titleHook}\n\n${descLine}\n\nRate this shine from 1 to 10! 👇\nFollow @buffedboujee for more satisfying content 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds`;
   } else if (targetAccount === 'account3') {
-    const titleLine = videoTitleClean ? `🐶 ${videoTitleClean}` : `I can't stop watching this 😂🥺`;
-    const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `Watch this adorable moment! We literally can't get enough of this cuteness. Tag a friend who needs to see this!`;
+    const titleLine = videoTitleClean && videoTitleClean.length > 4 ? `🐶 ${videoTitleClean}` : `I can't stop watching this 😂🥺`;
+    const descLine = `Watch this adorable moment! We literally can't get enough of this cuteness. Tag a friend who needs to see this!`;
     return `${titleLine}\n\n${descLine}\n\nFollow @house.of.paws38 for your daily dose of cuteness 🐾🐶\n\n#DogsOfInstagram #CutePets #FunnyDogs #DogLovers #PuppyLove #PetVideos #HouseOfPaws`;
   } else {
-    const titleLine = videoTitleClean ? `✨ ${videoTitleClean}` : `A reminder your soul needed right now 🤲💚`;
-    const descLine = videoDescClean ? videoDescClean.slice(0, 180) : `In the quiet moments of life, turn your heart to Allah. He is closer to you than you think. Trust His plan, even when the path feels unclear.`;
+    const titleLine = videoTitleClean && videoTitleClean.length > 4 ? `✨ ${videoTitleClean}` : `A reminder your soul needed right now 🤲💚`;
+    const descLine = `In the quiet moments of life, turn your heart to Allah. He is closer to you than you think. Trust His plan, even when the path feels unclear.`;
     return `${titleLine}\n\n${descLine}\n\nFollow @faith.canvas.99 for daily reminders 🤲🕊️\n\n#Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa`;
   }
 }
@@ -877,7 +954,7 @@ async function processSingleItem(item, targetAccount) {
 
     // AI Caption Generation (Multimodal Visual Analysis of Video Frame + Metadata Context)
     console.log(`Generating AI Caption based on video visual analysis & metadata...`);
-    const caption = await generateCaption(item.url, rawUploadStoragePath, targetAccount, coverPath, videoMetadata);
+    const caption = await generateCaption(item.url, rawUploadStoragePath, targetAccount, coverPath, videoMetadata, accountConfig);
 
     // Upload Transformed Video & Cover to Cloudflare R2
     const uploadName = `${fileId}.mp4`;
