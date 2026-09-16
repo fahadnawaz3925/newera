@@ -71,7 +71,7 @@ function generateAntiCopyrightParams(targetAccount, config) {
   const trimEnd = randFloat(0.1, 0.3);
   const ptsFactor = 1 / audioSpeedFactor;
 
-  const preset = 'fast';
+  const preset = 'veryfast';
   const profile = 'main';
   const tune = 'film';
   const level = '4.0';
@@ -331,7 +331,6 @@ async function main() {
 
     ffmpegArgs.push(
       '-i', rawDownloadedPath,
-      '-f', 'lavfi', '-i', 'anoisesrc=color=brown:r=44100:amplitude=0.025',
       '-map_metadata', '-1',
       '-metadata', `title=${params.metaTitle}`,
       '-metadata', `artist=${params.metaArtist}`,
@@ -343,9 +342,9 @@ async function main() {
       '-metadata', `handler_name=${params.device.handler}`,
       '-metadata', `creation_time=${params.creationTime}`,
       '-vf', vfParts.join(','),
-      '-filter_complex', `[0:a]${afParts.join(',')}[a1];[a1][1:a]amix=inputs=2:duration=first[aout]`,
+      '-af', afParts.join(','),
       '-map', '0:v',
-      '-map', '[aout]',
+      '-map', '0:a',
       '-r', String(params.frameRate),
       '-c:v', 'libx264',
       '-preset', params.preset,

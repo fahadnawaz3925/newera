@@ -59,6 +59,10 @@ const GLOBAL_LOCK_KEY = 'global_publisher_lock.json';
 const GLOBAL_LOCK_TIMEOUT_MS = 30 * 60 * 1000; // 30 min max lock duration before auto-recovery
 const GLOBAL_MIN_STAGGER_MINS = 7.0; // Min 7 min interval between ANY post across accounts
 
+// In-memory cache for next scheduled post time per account and active job tracking
+const scheduledNextPost = {};
+const activeProcessingJobs = {};
+
 async function acquireGlobalLock(accountId, itemId = 'pre-claim') {
   try {
     const cmd = new GetObjectCommand({ Bucket: bucketName, Key: GLOBAL_LOCK_KEY });
@@ -68,15 +72,19 @@ async function acquireGlobalLock(accountId, itemId = 'pre-claim') {
     
     if (lock && lock.isLocked) {
       const lockAge = Date.now() - (lock.lockedAt || 0);
-      if (lockAge < GLOBAL_LOCK_TIMEOUT_MS) {
+      const isDeadLocalLock = lock.hostname === os.hostname() && lock.pid !== process.pid && Object.keys(activeProcessingJobs).length === 0;
+      if (isDeadLocalLock) {
+        console.log(`[GLOBAL LOCK] 🔄 Dead predecessor lock detected from previous run (PID ${lock.pid} on ${lock.hostname}). Auto-recovering lock immediately.`);
+      } else if (lockAge < GLOBAL_LOCK_TIMEOUT_MS) {
         return { 
           acquired: false, 
           holder: lock.lockedByAccount, 
           itemId: lock.itemId,
           ageMins: (lockAge / 60000).toFixed(1) 
         };
+      } else {
+        console.log(`[GLOBAL LOCK] ⚠️ Stale lock detected (${(lockAge/60000).toFixed(1)}m old held by ${lock.lockedByAccount}). Auto-recovering lock.`);
       }
-      console.log(`[GLOBAL LOCK] ⚠️ Stale lock detected (${(lockAge/60000).toFixed(1)}m old held by ${lock.lockedByAccount}). Auto-recovering lock.`);
     }
   } catch (e) {
     // No lock file exists, proceed
@@ -122,6 +130,87 @@ async function releaseGlobalLock(accountId) {
     console.error('Failed to release global lock in R2:', err.message);
   }
 }
+
+// Stale temp file cleanup (deletes transformed videos and covers older than 2 hours)
+function cleanupOldTempFiles() {
+  try {
+    const tempDir = os.tmpdir();
+    const files = fs.readdirSync(tempDir);
+    const now = Date.now();
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+    let purgedCount = 0;
+
+    for (const f of files) {
+      if (f.endsWith('.mp4') || f.endsWith('_cover.jpg') || f.startsWith('cookie_thumb_')) {
+        const fullPath = path.join(tempDir, f);
+        try {
+          const stats = fs.statSync(fullPath);
+          if (now - stats.mtimeMs > TWO_HOURS_MS) {
+            fs.unlinkSync(fullPath);
+            purgedCount++;
+          }
+        } catch (e) {}
+      }
+    }
+    if (purgedCount > 0) {
+      console.log(`🧹 Cleaned up ${purgedCount} stale temp file(s) (>2h old) from ${tempDir}`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Temp cleanup warning:', err.message);
+  }
+}
+
+// Startup sanitization to clear dead locks and clean old files
+async function startupSanitization() {
+  console.log('🧹 Performing startup sanitization...');
+  cleanupOldTempFiles();
+  try {
+    const cmd = new GetObjectCommand({ Bucket: bucketName, Key: GLOBAL_LOCK_KEY });
+    const res = await S3.send(cmd);
+    const lock = JSON.parse(await res.Body.transformToString());
+    if (lock && lock.isLocked && lock.hostname === os.hostname() && lock.pid !== process.pid) {
+      console.log(`[STARTUP] 🔓 Lingering lock from dead PID ${lock.pid} detected. Releasing.`);
+      await releaseGlobalLock('startup_recovery');
+    }
+  } catch (e) {}
+}
+
+// Graceful process shutdown handlers
+let isShuttingDown = false;
+async function gracefulShutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`\n🛑 Received ${signal}. Starting graceful shutdown...`);
+
+  try {
+    console.log('🔓 Releasing global publisher lock...');
+    await releaseGlobalLock('shutdown');
+  } catch (e) {}
+
+  for (const [acc, job] of Object.entries(activeProcessingJobs)) {
+    if (job && job.id) {
+      try {
+        console.log(`🔄 Resetting in-flight item ${job.id} for ${acc} back to PENDING...`);
+        await supabase.from('reels_queue').update({ status: 'PENDING', error_log: 'Interrupted by process restart' }).eq('id', job.id);
+      } catch (e) {}
+    }
+  }
+
+  cleanupOldTempFiles();
+  console.log('👋 reels-worker shutdown complete. Exiting.');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ Unhandled Promise Rejection (worker continuing):', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err.message);
+});
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -555,10 +644,7 @@ async function processSingleItem(item, targetAccount) {
     .limit(1);
 
   if (existingDupes && existingDupes.length > 0) {
-    const warnMsg = `⚠️ DUPLICATE DETECTED — URL hash ${sourceUrlHash} was already posted (item ${existingDupes[0].id}). Skipping to avoid copyright flag.`;
-    console.warn(warnMsg);
-    await supabase.from('reels_queue').update({ status: 'SKIPPED', error_log: warnMsg }).eq('id', item.id);
-    return;
+    console.log(`ℹ️ Duplicate source URL detected (previously posted in item ${existingDupes[0].id}). Proceeding with fresh 10-layer randomized anti-copyright transformation as requested!`);
   }
 
   // Note: The RPC already marked it as PROCESSING, so we just update the hash and account
@@ -867,14 +953,6 @@ async function processSingleItem(item, targetAccount) {
 
     console.log(`  ✅ 10-Layer Anti-Copyright Shield + Quality Upgrades applied successfully!`);
 
-    // Touch file modification timestamps to mirror fresh mobile capture
-    try {
-      const now = new Date();
-      fs.utimesSync(outputPath, now, now);
-    } catch (utimeErr) { }
-
-    console.log(`  ✅ 10-Layer Anti-Copyright Shield + Quality Upgrades applied successfully!`);
-
     // ─── Random Thumbnail Extraction from Transformed Video ───
     console.log(`🖼️ Extracting random thumbnail from transformed video (for anti-copyright shield)...`);
     let randomTimeStr = '1.5';
@@ -1104,6 +1182,18 @@ async function processSingleItem(item, targetAccount) {
       } catch (e) {
         console.error('Failed to set rate limit:', e.message);
       }
+    } else {
+      // Non-ban failure (transient network glitch, download issue, etc.)
+      // Reset next_scheduled to retry in 30s so the entire queue is not blocked for 25m!
+      const retryTime = Date.now() + 30 * 1000;
+      scheduledNextPost[targetAccount] = retryTime;
+      await S3.send(new PutObjectCommand({
+        Bucket: bucketName,
+        Key: `next_scheduled_${targetAccount}.txt`,
+        Body: retryTime.toString(),
+        ContentType: 'text/plain'
+      })).catch(() => {});
+      console.log(`[${targetAccount}] 🔄 Reset next_scheduled to retry in 30s for next queue item.`);
     }
   } finally {
     delete activeProcessingJobs[targetAccount];
@@ -1125,12 +1215,11 @@ async function processSingleItem(item, targetAccount) {
   }
 }
 
-// In-memory cache for next scheduled post time per account
-const scheduledNextPost = {};
-const activeProcessingJobs = {};
-
 // Continuous Daemon Loop
 async function startDaemon() {
+  await startupSanitization();
+  // Hourly disk cleanup to purge old temporary renders
+  setInterval(cleanupOldTempFiles, 60 * 60 * 1000);
   console.log(`\n======================================================`);
   console.log(`🚀 Standalone 24/7 Reel Auto-Poster Daemon Started`);
   console.log(`⏱️ Schedule: Every 20-25 minutes per account independently`);
@@ -1184,10 +1273,18 @@ async function startDaemon() {
             const proxyToUse = getNextProxy();
             if (proxyToUse) ytDlpThumbOpts.push('--proxy', proxyToUse);
             
+            let accountSessionId = null;
+            if (targetAccount === 'account3') accountSessionId = process.env.IG_SESSION_ID_3;
+            else if (targetAccount === 'account2') accountSessionId = process.env.IG_SESSION_ID_2;
+            else accountSessionId = process.env.IG_SESSION_ID_1;
+
+            const persistentCookiePath = path.join(__dirname, `cookies_${targetAccount}.txt`);
             let tmpCookie = null;
-            if (process.env.IG_SESSION_ID && tItem.url.includes('instagram.com')) {
+            if (fs.existsSync(persistentCookiePath)) {
+              ytDlpThumbOpts.push('--cookies', persistentCookiePath);
+            } else if (accountSessionId && tItem.url.includes('instagram.com')) {
               tmpCookie = path.join(os.tmpdir(), `cookie_thumb_${tItem.id}.txt`);
-              fs.writeFileSync(tmpCookie, `# Netscape HTTP Cookie File\n.instagram.com\tTRUE\t/\tTRUE\t2000000000\tsessionid\t${process.env.IG_SESSION_ID}\n`);
+              fs.writeFileSync(tmpCookie, `# Netscape HTTP Cookie File\n.instagram.com\tTRUE\t/\tTRUE\t2000000000\tsessionid\t${accountSessionId}\n`);
               ytDlpThumbOpts.push('--cookies', tmpCookie);
             }
             

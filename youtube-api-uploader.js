@@ -4,15 +4,24 @@ const path = require('path');
 
 const CREDENTIALS_FILE = path.join(__dirname, 'youtube_api_credentials.json');
 
+let quotaExceededUntil = 0;
+
 /**
  * Upload a vertical video to YouTube as a Public YouTube Short using official YouTube Data API v3
  * @param {Object} options
  * @param {string} options.videoPath - Absolute path to .mp4 video file
  * @param {string} options.title - Short title (will append #Shorts)
  * @param {string} options.description - Short description & tags
- * @returns {Promise<{success: boolean, videoId?: string, shortUrl?: string, error?: string}>}
+ * @returns {Promise<{success: boolean, videoId?: string, shortUrl?: string, error?: string, quotaExceeded?: boolean}>}
  */
 async function uploadShortViaYouTubeAPI({ videoPath, title, description }) {
+  const now = Date.now();
+  if (now < quotaExceededUntil) {
+    const hoursLeft = ((quotaExceededUntil - now) / 3600000).toFixed(1);
+    console.log(`⏳ [YouTube API] Daily upload quota reached (10,000 units). Skipping upload until reset (~${hoursLeft}h remaining).`);
+    return { success: false, quotaExceeded: true, error: 'Daily YouTube API quota reached' };
+  }
+
   let credentials = null;
 
   if (fs.existsSync(CREDENTIALS_FILE)) {
@@ -58,43 +67,59 @@ async function uploadShortViaYouTubeAPI({ videoPath, title, description }) {
   const fileSize = fs.statSync(videoPath).size;
   console.log(`📦 Video File Size: ${(fileSize / (1024 * 1024)).toFixed(2)} MB`);
 
-  const res = await youtube.videos.insert({
-    part: ['snippet', 'status'],
-    notifySubscribers: true,
-    requestBody: {
-      snippet: {
-        title: cleanTitle,
-        description: (description || '').trim(),
-        tags: ['Shorts', 'ASMR', 'ShoeShine', 'Satisfying', 'buffedboujee', 'shoerestoration'],
-        categoryId: '26', // Howto & Style
-        defaultLanguage: 'en',
-        defaultAudioLanguage: 'en'
+  try {
+    const res = await youtube.videos.insert({
+      part: ['snippet', 'status'],
+      notifySubscribers: true,
+      requestBody: {
+        snippet: {
+          title: cleanTitle,
+          description: (description || '').trim(),
+          tags: ['Shorts', 'ASMR', 'ShoeShine', 'Satisfying', 'buffedboujee', 'shoerestoration'],
+          categoryId: '26', // Howto & Style
+          defaultLanguage: 'en',
+          defaultAudioLanguage: 'en'
+        },
+        status: {
+          privacyStatus: 'public',
+          selfDeclaredMadeForKids: false
+        }
       },
-      status: {
-        privacyStatus: 'public',
-        selfDeclaredMadeForKids: false
+      media: {
+        body: fs.createReadStream(videoPath)
       }
-    },
-    media: {
-      body: fs.createReadStream(videoPath)
+    });
+
+    const videoId = res.data?.id;
+    if (!videoId) {
+      throw new Error('Upload succeeded but YouTube API did not return a Video ID.');
     }
-  });
 
-  const videoId = res.data?.id;
-  if (!videoId) {
-    throw new Error('Upload succeeded but YouTube API did not return a Video ID.');
+    const shortUrl = `https://youtube.com/shorts/${videoId}`;
+    console.log('\n===============================================================');
+    console.log(`🎉 SUCCESS! YouTube Short published live via API: ${shortUrl}`);
+    console.log('===============================================================');
+
+    return {
+      success: true,
+      videoId,
+      shortUrl
+    };
+  } catch (err) {
+    const errMsg = err.message || '';
+    if (errMsg.includes('quotaExceeded') || errMsg.includes('quota') || err.code === 403) {
+      const nextReset = new Date();
+      nextReset.setUTCHours(8, 5, 0, 0); // 08:05 UTC (shortly after midnight PST reset)
+      if (nextReset.getTime() <= now) {
+        nextReset.setUTCDate(nextReset.getUTCDate() + 1);
+      }
+      quotaExceededUntil = nextReset.getTime();
+      const hoursUntil = ((quotaExceededUntil - now) / 3600000).toFixed(1);
+      console.warn(`⚠️ [YouTube API] Daily quota exceeded (10,000 units / ~6 uploads per day). Pausing YouTube uploads until 08:00 UTC (~${hoursUntil}h).`);
+      return { success: false, quotaExceeded: true, error: 'Daily YouTube API quota reached' };
+    }
+    throw err;
   }
-
-  const shortUrl = `https://youtube.com/shorts/${videoId}`;
-  console.log('\n===============================================================');
-  console.log(`🎉 SUCCESS! YouTube Short published live via API: ${shortUrl}`);
-  console.log('===============================================================');
-
-  return {
-    success: true,
-    videoId,
-    shortUrl
-  };
 }
 
 module.exports = { uploadShortViaYouTubeAPI };
