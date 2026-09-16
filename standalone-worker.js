@@ -56,7 +56,7 @@ function getNextProxy() {
 // Guarantees STRICTLY ONE video publishes at a time across all accounts
 // ═══════════════════════════════════════════════════════════════
 const GLOBAL_LOCK_KEY = 'global_publisher_lock.json';
-const GLOBAL_LOCK_TIMEOUT_MS = 15 * 60 * 1000; // 15 min max lock duration before auto-recovery
+const GLOBAL_LOCK_TIMEOUT_MS = 30 * 60 * 1000; // 30 min max lock duration before auto-recovery
 const GLOBAL_MIN_STAGGER_MINS = 7.0; // Min 7 min interval between ANY post across accounts
 
 async function acquireGlobalLock(accountId, itemId = 'pre-claim') {
@@ -208,17 +208,17 @@ function generateAntiCopyrightParams(targetAccount, config) {
 
   const ptsFactor = 1 / audioSpeedFactor;
 
-  // Maximum Quality Video & Audio Encoding Parameters
-  const preset = randPick(['medium', 'fast']); // High-quality macroblock search
+  // Optimized Video & Audio Encoding Parameters for Cloud VM (prevents CPU thread deadlock)
+  const preset = 'veryfast';                   // Fast & efficient x264 encoding (completes in ~40s instead of 90 mins)
   const profile = 'high';                      // H.264 High Profile (best compression/sharpness)
   const tune = 'film';
   const level = '4.2';
 
   const gopSize = randInt(30, 60); 
 
-  const videoBitrate = randInt(6500, 8500) + 'k'; // High bitrate 6.5 - 8.5 Mbps for crisp 1080p HD
-  const maxRate = randInt(10000, 12000) + 'k';   // Max 10-12 Mbps peak
-  const audioBitrate = '320k';                    // Crystal clear studio audio (320 kbps AAC)
+  const videoBitrate = randInt(5500, 7000) + 'k'; // Crisp 1080p HD bitrate
+  const maxRate = randInt(7500, 9500) + 'k';     // Peak bitrate
+  const audioBitrate = '256k';                    // Crystal clear studio audio (256 kbps AAC)
 
   const noiseStrength = randInt(1, 2);           // Ultra-low imperceptible noise
 
@@ -532,6 +532,8 @@ async function processSingleItem(item, targetAccount) {
     return;
   }
 
+  activeProcessingJobs[targetAccount] = { id: item.id, startedAt: Date.now() };
+
   console.log(`\n========================================`);
   console.log(`🎬 Processing item ${item.id} for ${targetAccount}...`);
   console.log(`========================================`);
@@ -702,8 +704,8 @@ async function processSingleItem(item, targetAccount) {
     // Layer 1: Visual Obfuscation
     // Crop subtle 1-3% to hide edge artifacts/watermarks
     vfParts.push(`crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`);
-    // Scale and crop to fill the full 1080x1920 9:16 vertical Reel frame with ZERO black letterbox bars!
-    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos`);
+    // Scale and crop to fill the full 1080x1920 9:16 vertical Reel frame with ZERO black letterbox bars (bicubic for high speed & clarity)
+    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=increase:flags=bicubic`);
     vfParts.push('crop=1080:1920');
     vfParts.push('setsar=1');
 
@@ -712,9 +714,6 @@ async function processSingleItem(item, targetAccount) {
 
     // Layer 1: Randomized brightness/contrast/saturation/gamma
     vfParts.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
-
-    // Layer 1: Randomized noise injection (spatial only for speed)
-    vfParts.push(`noise=alls=${params.noiseStrength}:allf=u`);
 
     // Layer 7: Random color grading
     if (params.colorGrade) {
@@ -735,9 +734,6 @@ async function processSingleItem(item, targetAccount) {
     // Layer 11: Invisible moving text hash (moves across the screen at 1% opacity, invisible to humans, completely breaks structural similarity algorithms)
     const invisibleHash = Math.random().toString(36).substring(2, 10);
     vfParts.push(`drawtext=text='${invisibleHash}':fontsize=50:fontcolor=white@0.01:x=w*t/15:y=h*t/20`);
-
-    // Layer 9: Geometric Distortion (Micro-rotation with no black borders)
-    vfParts.push(`rotate=${params.rotAngle}*PI/180:ow=1080:oh=1920`);
 
     // Force SAR to 1:1 and yuv420p output (prevents concat errors)
     vfParts.push('setsar=1');
@@ -813,8 +809,6 @@ async function processSingleItem(item, targetAccount) {
 
     ffmpegArgs.push(
       '-i', inputPath,
-      // Layer 8: Background noise (imperceptible brown noise at 1.2% volume)
-      '-f', 'lavfi', '-i', 'anoisesrc=color=brown:r=48000:amplitude=0.012',
       '-map_metadata', '-1',                        // Strip ALL original metadata
       // Layer 5: Randomized device-spoofed metadata
       '-metadata', `title=${params.metaTitle}`,
@@ -828,11 +822,11 @@ async function processSingleItem(item, targetAccount) {
       '-metadata', `creation_time=${params.creationTime}`,
       // Layer 1 + 6 + 7: Video filter chain
       '-vf', videoFilterChain,
-      // Layer 2 + 8: Audio filter complex (mix original with brown noise)
-      '-filter_complex', `[0:a]${audioFilterChain}[a1];[a1][1:a]amix=inputs=2:duration=first[aout]`,
+      // Layer 2: Audio filter chain
+      '-af', audioFilterChain,
       '-map', '0:v',
-      '-map', '[aout]',
-      // Layer 4: Highest Quality Encoding parameters
+      '-map', '0:a',
+      // Layer 4: Clean, high-speed encoding parameters (prevents thread deadlocks)
       '-r', params.frameRate,
       '-c:v', 'libx264',
       '-preset', params.preset,
@@ -845,7 +839,7 @@ async function processSingleItem(item, targetAccount) {
       '-threads', '2',
       '-b:v', params.videoBitrate,
       '-maxrate', params.maxRate,
-      '-bufsize', '24M',
+      '-bufsize', '18M',
       '-g', String(params.gopSize),
       '-c:a', 'aac',
       '-b:a', params.audioBitrate,
@@ -1082,9 +1076,16 @@ async function processSingleItem(item, targetAccount) {
     console.error(`❌ Error processing item ${item.id} for ${targetAccount}:`, processError.message);
     await supabase.from('reels_queue').update({ status: 'FAILED', error_log: processError.message }).eq('id', item.id);
     
-    // Emergency Cooldown on 429 or 401
-    if (processError.message.includes('429') || processError.message.includes('401')) {
-      console.log(`🚨 INSTAGRAM BAN DETECTED (429/401). Triggering 60-minute emergency cooldown for ${targetAccount}!`);
+    // Emergency Cooldown ONLY on actual Instagram/Meta API rate limit or auth rejection
+    const isInstagramApiBan = processError.response && (processError.response.status === 429 || processError.response.status === 401);
+    const isInstagramMsgBan = processError.message && (
+      processError.message.includes('OAuthException') || 
+      processError.message.includes('Instagram rate limit') || 
+      processError.message.includes('User request limit reached') ||
+      processError.message.includes('(#4) Application request limit reached')
+    );
+    if (isInstagramApiBan || isInstagramMsgBan) {
+      console.log(`🚨 INSTAGRAM BAN DETECTED (Meta API 429/401). Triggering 60-minute emergency cooldown for ${targetAccount}!`);
       try {
         const cooldownTime = Date.now() + 60 * 60 * 1000;
         await S3.send(new PutObjectCommand({
@@ -1098,6 +1099,7 @@ async function processSingleItem(item, targetAccount) {
       }
     }
   } finally {
+    delete activeProcessingJobs[targetAccount];
     // ALWAYS release global lock on exit (success or failure)
     await releaseGlobalLock(targetAccount);
 
@@ -1118,6 +1120,7 @@ async function processSingleItem(item, targetAccount) {
 
 // In-memory cache for next scheduled post time per account
 const scheduledNextPost = {};
+const activeProcessingJobs = {};
 
 // Continuous Daemon Loop
 async function startDaemon() {
@@ -1197,8 +1200,8 @@ async function startDaemon() {
           }
         }
 
-        // 1. Check active PROCESSING items and auto-recover stale ones (>15 min)
-        let procQuery = supabase.from('reels_queue').select('*').eq('status', 'PROCESSING');
+        // 1. Check active PROCESSING items
+        let procQuery = supabase.from('reels_queue').select('id, error_log').eq('status', 'PROCESSING');
         if (targetAccount === 'account1') {
           procQuery = procQuery.or('account_id.eq.account1,account_id.is.null');
         } else {
@@ -1207,14 +1210,15 @@ async function startDaemon() {
 
         const { data: activeProcs } = await procQuery;
         if (activeProcs && activeProcs.length > 0) {
-          const fifteenMinsAgo = Date.now() - 15 * 60 * 1000;
-          const staleItems = activeProcs.filter(item => new Date(item.created_at).getTime() < fifteenMinsAgo);
-          if (staleItems.length > 0) {
-            console.log(`[${targetAccount}] 🔄 Resetting ${staleItems.length} stuck PROCESSING item(s) (>15m) back to PENDING...`);
-            await supabase.from('reels_queue').update({ status: 'PENDING', error_log: 'Reset stuck PROCESSING state (>15m)' }).in('id', staleItems.map(i => i.id));
+          const currentJob = activeProcessingJobs[targetAccount];
+          const isActivelyWorking = currentJob && activeProcs.some(p => p.id === currentJob.id && (Date.now() - currentJob.startedAt < 30 * 60 * 1000));
+          if (!isActivelyWorking) {
+            console.log(`[${targetAccount}] 🔄 Found ${activeProcs.length} orphaned PROCESSING item(s) without active worker lock. Resetting to PENDING...`);
+            await supabase.from('reels_queue').update({ status: 'PENDING', error_log: null }).in('id', activeProcs.map(i => i.id));
+          } else {
+            // An item is actively being processed by this instance right now
+            continue;
           }
-          // If an item is still actively processing within 15 min, wait for it
-          continue;
         }
 
         // 2. Check if there are pending items in the queue for this account
