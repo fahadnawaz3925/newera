@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const crypto = require('crypto');
+const { uploadShortViaYouTubeAPI } = require('./youtube-api-uploader');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -298,27 +299,36 @@ function cleanVideoTitle(rawTitle) {
   title = title.replace(/^\d+[\s_+%-]*/, '');
   title = title.replace(/^\d+[a-zA-Z_]+[\s_+%-]*/, '');
 
-  // 4. Remove view count brackets and mentions (e.g. "[145.0M_views]", "[917.0K_views]", "145M views", "917K views")
+  // 4. Remove account handles embedded in file names
+  title = title.replace(/buffedboujee|faith\.?canvas(\.99)?|house\.?of\.?paws(38)?/gi, '');
+
+  // 5. Remove long numeric ID tokens (e.g. "00000253155")
+  title = title.replace(/\b\d{4,}\b/g, '');
+
+  // 6. Remove view count brackets and mentions (e.g. "[145.0M_views]", "[917.0K_views]", "145M views", "917K views")
   title = title.replace(/\[\s*\d+(\.\d+)?[KMBkmb]?[\s_-]*views?\s*\]/gi, '');
   title = title.replace(/\(\s*\d+(\.\d+)?[KMBkmb]?[\s_-]*views?\s*\)/gi, '');
   title = title.replace(/\b\d+(\.\d+)?[KMBkmb]?\s*views?\b/gi, '');
   title = title.replace(/\b\d+(\.\d+)?[KMBkmb]\b/gi, '');
 
-  // 5. Remove any leftover brackets and IDs
+  // 7. Remove any leftover brackets and IDs
   title = title.replace(/\[.*?\]/g, '');
   title = title.replace(/\(.*?\)/g, '');
 
-  // 6. Remove hashtags embedded in title
+  // 8. Remove hashtags embedded in title
   title = title.replace(/#[a-zA-Z0-9_]+/g, '');
 
-  // 7. Clean separator characters (|, l, _, -) and normalize spaces
-  title = title.replace(/[|l_]+/g, ' ');
+  // 9. Clean separator characters (| and _) and normalize spaces (NEVER remove letter l!)
+  title = title.replace(/[|_]+/g, ' ');
   title = title.replace(/[-]{2,}/g, ' ');
   title = title.replace(/\s+/g, ' ').trim();
 
-  // 8. Strip leading/trailing non-alphanumeric junk
+  // 10. Strip leading/trailing non-alphanumeric junk
   title = title.replace(/^[^a-zA-Z0-9\u00C0-\u024F\u0600-\u06FF]+/, '').trim();
   title = title.replace(/[^a-zA-Z0-9\u00C0-\u024F\u0600-\u06FF\s.!?]+$/, '').trim();
+
+  // 11. If title is strictly numeric or symbols (e.g. "253"), or too short, discard it completely
+  if (/^[\d\s._-]+$/.test(title) || title.length <= 3) return '';
 
   return title;
 }
@@ -477,18 +487,20 @@ Start directly with the hook line.`;
   }
 
   // Dynamic Video-Specific Fallback (Never include video numbers or view counts!)
+  const isMeaningfulTitle = videoTitleClean && videoTitleClean.length > 4 && !/^\d+$/.test(videoTitleClean);
+
   if (targetAccount === 'account2') {
-    const titleHook = videoTitleClean && videoTitleClean.length > 4 ? `Turn your sound UP for this transformation 🎧🔥` : `Turn your sound UP for this 🎧🔥`;
+    const titleHook = `Turn your sound UP for this transformation 🎧🔥`;
     const descLine = `Watch this deeply satisfying transformation — worn leather brought back to life with a flawless mirror shine. The crisp ASMR sounds are pure therapy 🤌✨`;
-    return `${titleHook}\n\n${descLine}\n\nRate this shine from 1 to 10! 👇\nFollow @buffedboujee for more satisfying content 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds`;
+    return cleanAndSanitizeCaption(`${titleHook}\n\n${descLine}\n\nRate this shine from 1 to 10! 👇\nFollow @buffedboujee for more satisfying content 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds`, targetAccount);
   } else if (targetAccount === 'account3') {
-    const titleLine = videoTitleClean && videoTitleClean.length > 4 ? `🐶 ${videoTitleClean}` : `I can't stop watching this 😂🥺`;
+    const titleLine = isMeaningfulTitle ? `🐶 ${videoTitleClean}` : `I can't stop watching this 😂🥺`;
     const descLine = `Watch this adorable moment! We literally can't get enough of this cuteness. Tag a friend who needs to see this!`;
-    return `${titleLine}\n\n${descLine}\n\nFollow @house.of.paws38 for your daily dose of cuteness 🐾🐶\n\n#DogsOfInstagram #CutePets #FunnyDogs #DogLovers #PuppyLove #PetVideos #HouseOfPaws`;
+    return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @house.of.paws38 for your daily dose of cuteness 🐾🐶\n\n#DogsOfInstagram #CutePets #FunnyDogs #DogLovers #PuppyLove #PetVideos #HouseOfPaws`, targetAccount);
   } else {
-    const titleLine = videoTitleClean && videoTitleClean.length > 4 ? `✨ ${videoTitleClean}` : `A reminder your soul needed right now 🤲💚`;
+    const titleLine = isMeaningfulTitle ? `✨ ${videoTitleClean}` : `A reminder your soul needed right now 🤲💚`;
     const descLine = `In the quiet moments of life, turn your heart to Allah. He is closer to you than you think. Trust His plan, even when the path feels unclear.`;
-    return `${titleLine}\n\n${descLine}\n\nFollow @faith.canvas.99 for daily reminders 🤲🕊️\n\n#Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa`;
+    return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @faith.canvas.99 for daily reminders 🤲🕊️\n\n#Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa`, targetAccount);
   }
 }
 
@@ -718,10 +730,7 @@ async function processSingleItem(item, targetAccount) {
     // Layer 9: Subtle hue shift (rotates colors by 1-2 degrees, imperceptible but defeats color histograms)
     vfParts.push(`hue=h=${randInt(1, 2)}`);
 
-    // Layer 10: Vignette (DISABLED for account2 and account3 to prevent edge shadow/darkness)
-    if (targetAccount !== 'account2' && targetAccount !== 'account3') {
-      vfParts.push(`vignette=PI/4+PI/${randInt(18, 32)}`);
-    }
+    // Layer 10: Edge Clarity — Vignette completely disabled across ALL accounts to guarantee zero corner/side darkness or edge shadows
 
     // Layer 11: Invisible moving text hash (moves across the screen at 1% opacity, invisible to humans, completely breaks structural similarity algorithms)
     const invisibleHash = Math.random().toString(36).substring(2, 10);
@@ -763,6 +772,11 @@ async function processSingleItem(item, targetAccount) {
     // Layer 2: Subtle reverb (40% chance)
     if (params.doReverb) {
       afParts.push(`aecho=0.8:0.88:${randInt(4, 8)}:${randFloat(0.20, 0.35).toFixed(2)}`);
+    }
+
+    // Layer 2: Lead silence / delay (shifts audio waveform fingerprint in single pass at native 48kHz)
+    if (params.silenceMs > 0) {
+      afParts.push(`adelay=${params.silenceMs}|${params.silenceMs}`);
     }
 
     // Layer 10: Smooth fade-in
@@ -842,78 +856,15 @@ async function processSingleItem(item, targetAccount) {
 
     await execa(ffmpegBinary, ffmpegArgs);
 
-    // Layer 2: Inject random silence at the start (shifts audio waveform fingerprint)
-    if (params.silenceMs > 0) {
-      const silencePath = path.join(tempDir, `${fileId}_silence.mp4`);
-      try {
-        await execa(ffmpegBinary, [
-          '-y',
-          '-f', 'lavfi', '-t', (params.silenceMs / 1000).toFixed(3),
-          '-i', `anullsrc=r=44100:cl=stereo`,
-          '-i', outputPath,
-          '-filter_complex', `[0:a][1:a]concat=n=2:v=0:a=1[outa]`,
-          '-map', '1:v', '-map', '[outa]',
-          '-c:v', 'copy', '-c:a', 'aac', '-b:a', params.audioBitrate,
-          '-movflags', '+faststart',
-          silencePath
-        ]);
-        // Replace output with silence-injected version
-        fs.renameSync(silencePath, outputPath);
-        console.log(`  ✅ Injected ${params.silenceMs}ms silence at audio start`);
-      } catch (silErr) {
-        console.warn(`  ⚠️ Silence injection failed (non-critical):`, silErr.message);
-        // Clean up failed silence file
-        try { fs.unlinkSync(silencePath); } catch (e) { }
-      }
-    }
+    console.log(`🎬 Clean start for ${targetAccount} (zero black frames, full 9:16 Lanczos framing)...`);
 
-    // ─── Branded Intro/Outro Frames (Only for account1; disabled for account2 & account3 to eliminate black intro frames) ───
-    if (targetAccount === 'account1') {
-      console.log(`🎬 Adding branded intro/outro frames for account1...`);
-      const introOutroPath = path.join(tempDir, `${fileId}_branded.mp4`);
-      try {
-        const introDuration = 0.5;
-        const outroDuration = 0.8;
-        const introText = '@faith.canvas.99';
-        const outroText = 'Follow @faith.canvas.99 for daily reminders';
+    // Touch file modification timestamps to mirror fresh mobile capture
+    try {
+      const now = new Date();
+      fs.utimesSync(outputPath, now, now);
+    } catch (utimeErr) { }
 
-        // Build intro/outro with color source + text overlay, then concat with main video
-        await execa(ffmpegBinary, [
-          '-y',
-          // Input 0: Intro
-          '-f', 'lavfi', '-t', String(introDuration),
-          '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${introText}':fontsize=36:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(introDuration - 0.2).toFixed(1)}:d=0.2,setsar=1`,
-          // Input 1: Intro silent audio
-          '-f', 'lavfi', '-t', String(introDuration),
-          '-i', 'anullsrc=r=44100:cl=stereo',
-          // Input 2: Main video
-          '-i', outputPath,
-          // Input 3: Outro
-          '-f', 'lavfi', '-t', String(outroDuration),
-          '-i', `color=c=black:s=1080x1920:r=${params.frameRate},format=yuv420p,drawtext=text='${outroText}':fontsize=28:fontcolor=white:x=(w-tw)/2:y=(h-th)/2,fade=t=in:st=0:d=0.3,fade=t=out:st=${(outroDuration - 0.3).toFixed(1)}:d=0.3,setsar=1`,
-          // Input 4: Outro silent audio
-          '-f', 'lavfi', '-t', String(outroDuration),
-          '-i', 'anullsrc=r=44100:cl=stereo',
-          // Concat intro + main + outro
-          '-filter_complex',
-          `[0:v]fps=${params.frameRate}[v0]; [2:v]fps=${params.frameRate}[v1]; [3:v]fps=${params.frameRate}[v2]; [v0][1:a][v1][2:a][v2][4:a]concat=n=3:v=1:a=1[outv][outa]`,
-          '-map', '[outv]', '-map', '[outa]',
-          '-c:v', 'libx264', '-preset', 'ultrafast', '-profile:v', 'main',
-          '-c:a', 'aac', '-b:a', params.audioBitrate,
-          '-movflags', '+faststart', '-b:v', '6M', '-maxrate', '8M', '-bufsize', '12M',
-          introOutroPath
-        ]);
-
-        // Replace output with branded version
-        fs.renameSync(introOutroPath, outputPath);
-        console.log(`  ✅ Branded intro (${introDuration}s) + outro (${outroDuration}s) added for account1!`);
-      } catch (brandErr) {
-        console.warn(`  ⚠️ Intro/outro failed (non-critical, using video without):`, brandErr.message);
-        try { fs.unlinkSync(introOutroPath); } catch (e) { }
-      }
-    } else {
-      console.log(`🎬 Clean start for ${targetAccount} (zero black frames)...`);
-    }
+    console.log(`  ✅ 10-Layer Anti-Copyright Shield + Quality Upgrades applied successfully!`);
 
     // Touch file modification timestamps to mirror fresh mobile capture
     try {
@@ -1055,6 +1006,41 @@ async function processSingleItem(item, targetAccount) {
 
     // Mark PUBLISHED immediately in Supabase
     await supabase.from('reels_queue').update({ status: 'PUBLISHED', error_log: null }).eq('id', item.id);
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🎬 YOUTUBE SHORTS CROSS-POSTING (Account 2 - Buffed & Boujee)
+    // ═══════════════════════════════════════════════════════════════
+    if (targetAccount === 'account2' && fs.existsSync(outputPath)) {
+      try {
+        console.log(`\n===============================================================`);
+        console.log(`🚀 Cross-posting transformed video to YouTube Shorts for ${targetAccount}...`);
+        console.log(`===============================================================`);
+
+        // Formulate YouTube Short Title (first sentence/line of caption, <= 85 chars + #Shorts)
+        const captionLines = (caption || '').split('\n').map(l => l.trim()).filter(Boolean);
+        let ytTitle = captionLines.length > 0 ? captionLines[0] : 'Satisfying Shoe Restoration ASMR';
+        // Strip markdown, quotes, trailing hashtags from title
+        ytTitle = ytTitle.replace(/[*_#"`]/g, '').trim();
+        if (ytTitle.length > 85) ytTitle = ytTitle.substring(0, 82) + '...';
+        ytTitle = `${ytTitle} #Shorts`;
+
+        const ytDescription = `${(caption || '').trim()}\n\n#Shorts #buffedboujee #shoerestoration #satisfying #ASMR`;
+
+        const ytRes = await uploadShortViaYouTubeAPI({
+          videoPath: outputPath,
+          title: ytTitle,
+          description: ytDescription
+        });
+
+        if (ytRes && ytRes.success) {
+          console.log(`🎉 [YOUTUBE SHORTS] Successfully published to YouTube! URL: ${ytRes.shortUrl}`);
+        } else {
+          console.warn(`⚠️ [YOUTUBE SHORTS] Upload did not complete: ${ytRes?.error || 'Unknown error'}`);
+        }
+      } catch (ytErr) {
+        console.error(`⚠️ [YOUTUBE SHORTS] Error during YouTube Shorts cross-posting:`, ytErr.message);
+      }
+    }
 
     const now = Date.now();
     const nextIntervalMins = randFloat(20, 25);
