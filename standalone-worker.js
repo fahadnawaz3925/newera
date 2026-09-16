@@ -437,12 +437,11 @@ Start directly with the hook line.`;
 
   if (apiKeys.length > 0) {
     const modelsToTry = [
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
       'gemini-3.5-flash-lite',
       'gemini-flash-lite-latest',
-      'gemini-flash-latest'
+      'gemini-flash-latest',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite'
     ];
 
     const systemInstruction = "You are an expert viral social media manager. Output EXACTLY ONE final, ready-to-publish Instagram Reel caption. NEVER output video numbers (e.g. '001', 'video #1') or view counts (e.g. '145M views'). NEVER output multiple options (NO 'Option 1', 'Option 2'). NEVER include preamble, conversational greetings, or explanations. Start directly with the hook line.";
@@ -462,7 +461,15 @@ Start directly with the hook line.`;
               ? [prompt, fileToGenerativePart(coverPath)]
               : [prompt];
 
-            const result = await model.generateContent(contents);
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error(`Timeout: ${modelName} exceeded 12s limit`)), 12000);
+            });
+
+            const result = await Promise.race([
+              model.generateContent(contents),
+              timeoutPromise
+            ]);
+
             let text = result.response?.text()?.trim();
             if (text) {
               text = cleanAndSanitizeCaption(text, targetAccount);
@@ -473,8 +480,8 @@ Start directly with the hook line.`;
             }
           } catch (err) {
             console.warn(`Model ${modelName} attempt ${attempt} failed for ${targetAccount}:`, err.message);
-            if (err.message.includes('429') || err.message.includes('503') || err.message.includes('not found') || err.message.includes('no longer available')) {
-              console.log(`Model ${modelName} unavailable/quota exceeded, switching to next model or API key...`);
+            if (err.message.includes('429') || err.message.includes('503') || err.message.includes('not found') || err.message.includes('no longer available') || err.message.includes('Timeout')) {
+              console.log(`Model ${modelName} unavailable/timed out, switching to next model or API key...`);
               break; // Break the attempt loop to try the next model or key immediately
             } else {
               console.log(`Sleeping 2s before retry...`);
