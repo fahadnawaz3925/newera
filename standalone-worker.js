@@ -297,16 +297,17 @@ function generateAntiCopyrightParams(targetAccount, config) {
 
   const ptsFactor = 1 / audioSpeedFactor;
 
-  // Optimized Video & Audio Encoding Parameters for Cloud VM (prevents CPU thread deadlock)
-  const preset = 'veryfast';                   // Fast & efficient x264 encoding (completes in ~40s instead of 90 mins)
-  const profile = 'high';                      // H.264 High Profile (best compression/sharpness)
-  const tune = 'film';
-  const level = '4.2';
+  // Optimized Video & Audio Encoding Parameters for Cloud VM & Fast Meta Reels Ingestion
+  const preset = 'veryfast';                   // Fast & efficient x264 encoding (~60-90s render)
+  const profile = 'high';                      // H.264 High Profile (best mobile compression/sharpness)
+  const tune = null;                          // Removed 'film' tune to prevent 4x CPU slowdown and massive files
+  const level = '4.1';                         // Instagram standard H.264 level 4.1
 
   const gopSize = randInt(30, 60); 
 
-  const videoBitrate = randInt(5500, 7000) + 'k'; // Crisp 1080p HD bitrate
-  const maxRate = randInt(7500, 9500) + 'k';     // Peak bitrate
+  // Bitrates tailored so 60-140s videos stay within 15-28MB (avoids Meta crawler timeouts & error 2207076)
+  const videoBitrate = randInt(3200, 3800) + 'k';
+  const maxRate = randInt(4000, 4600) + 'k';
   const audioBitrate = '256k';                    // Crystal clear studio audio (256 kbps AAC)
 
   const noiseStrength = randInt(1, 2);           // Ultra-low imperceptible noise
@@ -526,11 +527,11 @@ Start directly with the hook line.`;
 
   if (apiKeys.length > 0) {
     const modelsToTry = [
+      'gemini-3.5-flash',
       'gemini-3.5-flash-lite',
-      'gemini-flash-lite-latest',
-      'gemini-flash-latest',
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite'
+      'gemini-3.6-flash',
+      'gemini-3.7-flash',
+      'gemini-flash-latest'
     ];
 
     const systemInstruction = "You are an expert viral social media manager. Output EXACTLY ONE final, ready-to-publish Instagram Reel caption. NEVER output video numbers (e.g. '001', 'video #1') or view counts (e.g. '145M views'). NEVER output multiple options (NO 'Option 1', 'Option 2'). NEVER include preamble, conversational greetings, or explanations. Start directly with the hook line.";
@@ -924,7 +925,7 @@ async function processSingleItem(item, targetAccount) {
       '-c:v', 'libx264',
       '-preset', params.preset,
       '-profile:v', params.profile,
-      '-tune', params.tune,
+      ...(params.tune ? ['-tune', params.tune] : []),
       '-level', params.level,
       '-color_primaries', 'bt709',
       '-color_trc', 'bt709',
@@ -932,7 +933,7 @@ async function processSingleItem(item, targetAccount) {
       '-threads', '2',
       '-b:v', params.videoBitrate,
       '-maxrate', params.maxRate,
-      '-bufsize', '18M',
+      '-bufsize', '8M',
       '-g', String(params.gopSize),
       '-c:a', 'aac',
       '-b:a', params.audioBitrate,
@@ -1026,7 +1027,7 @@ async function processSingleItem(item, targetAccount) {
       }
     }
 
-    // Meta Reel Upload with Native Server-Side thumb_offset + cover_url
+    // Meta Reel Upload with Native Server-Side thumb_offset
     console.log(`Creating Meta Reel container for ${targetAccount}...`);
     const thumbOffsetMs = Math.floor(parseFloat(randomTimeStr) * 1000);
 
@@ -1038,11 +1039,10 @@ async function processSingleItem(item, targetAccount) {
       share_to_feed: 'true',
       access_token: PAGE_ACCESS_TOKEN
     };
-    if (publicCoverUrl) metaPayload.cover_url = publicCoverUrl;
 
     // Log the exact caption and thumbnail config being sent
     console.log(`📝 AI Caption (first 150 chars):\n${caption.substring(0, 150)}...`);
-    console.log(`🖼️ thumb_offset: ${thumbOffsetMs}ms | cover_url: ${publicCoverUrl ? 'YES' : 'NO'}`);
+    console.log(`🖼️ thumb_offset: ${thumbOffsetMs}ms (native Meta server-side extraction)`);
 
     const createRes = await fetch(`https://graph.facebook.com/v19.0/${IG_BUSINESS_ACCOUNT_ID}/media`, {
       method: 'POST',
@@ -1182,10 +1182,9 @@ async function processSingleItem(item, targetAccount) {
       } catch (e) {
         console.error('Failed to set rate limit:', e.message);
       }
-    } else {
       // Non-ban failure (transient network glitch, download issue, etc.)
-      // Reset next_scheduled to retry in 30s so the entire queue is not blocked for 25m!
-      const retryTime = Date.now() + 30 * 1000;
+      // Reset next_scheduled to retry in 2.5m so other accounts can post without being starved
+      const retryTime = Date.now() + 150 * 1000;
       scheduledNextPost[targetAccount] = retryTime;
       await S3.send(new PutObjectCommand({
         Bucket: bucketName,
@@ -1193,7 +1192,7 @@ async function processSingleItem(item, targetAccount) {
         Body: retryTime.toString(),
         ContentType: 'text/plain'
       })).catch(() => {});
-      console.log(`[${targetAccount}] 🔄 Reset next_scheduled to retry in 30s for next queue item.`);
+      console.log(`[${targetAccount}] 🔄 Reset next_scheduled to retry in 2.5 min for next queue item.`);
     }
   } finally {
     delete activeProcessingJobs[targetAccount];
@@ -1228,12 +1227,18 @@ async function startDaemon() {
   console.log(`======================================================\n`);
 
   const supportedAccounts = ['account1', 'account2', 'account3'];
+  let accountOffset = 0;
 
   // Track last log time per account to avoid spamming "waiting" logs
   const lastWaitLog = {};
 
   while (true) {
-    for (const targetAccount of supportedAccounts) {
+    const currentAccounts = [
+      supportedAccounts[accountOffset % supportedAccounts.length],
+      supportedAccounts[(accountOffset + 1) % supportedAccounts.length],
+      supportedAccounts[(accountOffset + 2) % supportedAccounts.length],
+    ];
+    for (const targetAccount of currentAccounts) {
       try {
         const now = Date.now();
 
@@ -1474,6 +1479,7 @@ async function startDaemon() {
 
           // Process the single claimed item in exact FIFO sequence (Global lock released in processSingleItem.finally)
           await processSingleItem(item, targetAccount);
+          accountOffset++;
         }
       } catch (loopErr) {
         console.error(`Error in daemon loop for ${targetAccount}:`, loopErr.message);
