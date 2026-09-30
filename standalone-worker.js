@@ -844,15 +844,12 @@ async function processSingleItem(item, targetAccount) {
       videoDuration = parseFloat(durationProbe.stdout?.trim());
     } catch (e) { }
 
-    // 🛡️ REELS DURATION CAP: Instagram Reels API strictly enforces <= 90s max!
-    // Videos exceeding 90s fail with Meta error 2207076 during container processing.
-    // Capping at 85.0s guarantees 100% compliance across Instagram Reels and YouTube Shorts!
-    const MAX_REEL_DURATION = 85.0;
+    // Full video preservation — post the complete video without duration truncation
     let trimEndTime = null;
     let effectiveDuration = videoDuration || 60;
     if (videoDuration && !isNaN(videoDuration) && videoDuration > 2) {
-      const rawEnd = videoDuration - (parseFloat(params.trimEnd) || 0);
-      trimEndTime = Math.min(rawEnd, MAX_REEL_DURATION).toFixed(3);
+      // Only trim subtle fraction of a second from end for anti-copyright fingerprint shift
+      trimEndTime = (videoDuration - (parseFloat(params.trimEnd) || 0)).toFixed(3);
       effectiveDuration = parseFloat(trimEndTime) - (parseFloat(params.trimStart) || 0);
     }
 
