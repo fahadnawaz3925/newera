@@ -18,8 +18,8 @@ async function fixQueue() {
   for (const item of data) {
     console.log(`ID: ${item.id} | Account: ${item.account_id} | Status: ${item.status} | URL: ${item.video_url}`);
     
-    // If the account is account1 but it's a cat video, move it to account3
-    if (item.account_id === 'account1' && item.video_url && item.video_url.includes('cat_reel')) {
+    // If the account is account1 but it's a cobbler video, move it to account3
+    if (item.account_id === 'account1' && item.video_url && (item.video_url.includes('cobbler') || item.video_url.includes('house_of_cobbler'))) {
       console.log(`-> Updating item ${item.id} to account3 and PENDING`);
       await supabase.from('reels_queue').update({
         account_id: 'account3',

@@ -1,0 +1,19 @@
+node_modules
+.git
+.env*
+*.pem
+*.mp4
+*.png
+*.jpg
+*.jpeg
+*.webp
+the house of cobbler
+HOUSE OF PAWS
+youtube_auth_profile
+.claude-flow
+.swarm
+search_ips.txt
+comment_replies_cache.json
+*.json
+!package.json
+!vercel.json

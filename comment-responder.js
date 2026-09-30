@@ -192,10 +192,10 @@ const FALLBACK_REPLIES = {
     "Thank you for being part of this reminder. May your heart find serenity today 🤲🕊️"
   ],
   account3: [
-    "Head completely empty, only treats and vibes in there! Thanks for loving our fur babies 🦴🐾😂",
-    "Sending you lots of puppy love and good vibes! 🐾🐶✨",
-    "Our furry friends say thank you for all the love and snacks! 🐶🦴",
-    "Pure joy and wagging tails over here! Thanks for stopping by 🐾😂"
+    "Nothing beats the timeless look of a hand-stitched Goodyear welt! Appreciate the love 👞✨",
+    "True craftsmanship takes patience, but that mirror finish makes it all worth it! Thanks for watching 🪞🔥",
+    "Honoring the master cordwainer tradition every single day. Glad you enjoyed the process 👞🤌",
+    "From raw leather to a bespoke masterpiece! Thank you for appreciating the craft 👞✨"
   ]
 };
 
