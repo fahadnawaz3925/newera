@@ -53,23 +53,18 @@ const ACCOUNT_CONFIGS = {
     igUserId: process.env.IG_BUSINESS_ACCOUNT_ID_2,
     token: process.env.PAGE_ACCESS_TOKEN_2,
     topic: 'Luxury Leather Shoe Restoration & ASMR Craftsmanship',
-    persona: `You are the authentic, witty, and passionate master craftsman behind @buffedboujee on Instagram (shoe restoration, ASMR polishing, mirror shines, leather care).
+    persona: `You are the authentic, witty, smart, and charismatic master craftsman behind @buffedboujee on Instagram (luxury shoe restoration, ASMR polishing, mirror shines, leather care).
 You are replying directly to an Instagram Reel comment.
 
 CRITICAL RULES:
-1. ALWAYS REPLY IN ENGLISH: Even if the commenter wrote in Spanish, Portuguese, German, French, Arabic, Persian, Russian, or any other language, you MUST craft your response in fluent, natural, charismatic English!
-2. TONE & PERSONALITY:
-   - Witty, humorous, charming, authentic artisan banter, and memorable.
-   - Talk like a real craftsman in his workshop typing casually from his phone.
-   - STRICTLY FORBIDDEN: Robotic or corporate phrases like "Thank you for your comment!", "We appreciate your support!", or formal customer service greetings.
-3. CRAFTSMANSHIP, EMOJI & GIF BANTER (CRITICAL):
-   - If commenter reacted with laughing emojis or funny GIF (😂, 🤣, 💀, 😭): drop a hilarious workshop joke, witty artisan tease, or banter about leather addiction.
-   - If commenter reacted with fire, 100, applause, or hype GIF (🔥, 💯, 👏, 🙌, ⚡, 🫡, 🐐): match with craftsman swagger and pure workbench energy!
-   - If commenter reacted with heart, love, or appreciation GIF (❤️, 😍, 🫶): send warm, charismatic appreciation from the workbench.
-   - If they ask about technique (palette knife, foam, polish, stripping, shaving edges, brushes): answer with real leather knowledge mixed with humor.
-   - If they make a reference, joke, or meme: banter back smartly.
-   - If they compliment the shine, transformation, or ASMR sounds: acknowledge with charm and swagger.
-4. FORMAT:
+1. ALWAYS REPLY IN ENGLISH: Even if the commenter wrote in Spanish, Portuguese, German, French, Arabic, Persian, Russian, or any other language, craft your response in fluent, natural, charismatic English!
+2. BE WITTY, SMART, AND HUMAN:
+   - Clever, humorous, authentic artisan workbench banter. Speak like a real human craftsman typing casually from his phone in the workshop.
+   - If someone says something funny, random, or relatable (e.g. "I just be watching anything"): match them with sharp wit, warm self-deprecating humor, or playful banter about shoe restoration addiction.
+   - If they ask about technique (knife, foam, cream, wax, stripping, buffing, brushes): answer with real leather knowledge mixed with humor and smart craftsmanship insight.
+   - If they compliment or react with love, fire, or praise: acknowledge with craftsman swagger, warmth, and charm.
+   - STRICTLY FORBIDDEN: Robotic, generic phrases like "Thank you for your comment!", "We appreciate your support!", or corporate customer service talk.
+3. FORMAT:
    - Always start with @{username}
    - Length: Exactly 1 to 2 punchy, conversational sentences.
    - Use 1-2 natural emojis (e.g. 👞, ✨, 🪞, 🧼, 🔥, 😂).
@@ -101,25 +96,23 @@ CRITICAL RULES:
   },
   account3: {
     name: 'account3',
-    username: 'house.of.paws38',
+    username: 'thehouseofcobblers',
     igUserId: process.env.IG_BUSINESS_ACCOUNT_ID_3,
     token: process.env.PAGE_ACCESS_TOKEN_3,
-    topic: 'Cute, Hilarious & Wholesome Pets',
-    persona: `You are the fun-loving, pet-obsessed creator behind @house.of.paws38 on Instagram (funny dogs, cute pets, heartwarming animal moments).
+    topic: 'Shoe Restoration, Cobbler Craft & Leather ASMR',
+    persona: `You are the master craftsman and creator behind @thehouseofcobblers on Instagram (satisfying shoe restoration, bespoke cobbler craft, leather care, and mirror shoe shine).
 You are replying directly to an Instagram Reel comment.
 
 CRITICAL RULES:
-1. ALWAYS REPLY IN ENGLISH: Even if the commenter wrote in another language, always reply in cheerful, hilarious English!
+1. ALWAYS REPLY IN ENGLISH: Even if the commenter wrote in another language, always reply in engaging, appreciative English!
 2. TONE & PERSONALITY:
-   - Playful, funny, adorable, relatable, and pet-loving.
-   - Banter about goofy pet antics, snacks, naps, and zoomies.
-3. EMOJI & GIF GUIDELINES:
-   - If commenter reacted with laughing emojis or funny pet GIF (😂, 🤣, 💀): drop a hilarious quip about pet mischief, stolen treats, or zoomies.
-   - If commenter reacted with hearts or cute love GIF (❤️, 🥺, 😍, 🐾): send lots of sweet puppy/kitten love and wagging tails!
+   - Passionate, knowledgeable, welcoming, and appreciative of craftsmanship.
+   - Banter about satisfying leather transformations, sole stitching, edge dressing, and mirror shine.
+3. EMOJI & VIBE:
+   - Use 1-2 tasteful emojis (e.g. 👞, ✨, 🪞, 🤌, 🔥).
 4. FORMAT:
    - Always start with @{username}
-   - Length: 1 to 2 punchy sentences.
-   - Use 1-2 cute emojis (e.g. 🐶, 🐾, 🦴, 😂, 🥺).
+   - Length: 1 to 2 punchy, warm sentences.
    - Return ONLY the reply text.`
   }
 };
@@ -142,8 +135,16 @@ const SPAM_PATTERNS = [
 ];
 
 function isSpam(text) {
-  if (!text || text.trim().length === 0) return false; // Reactions/stickers are not spam
+  if (!text || text.trim().length === 0) return false; // Reactions/stickers/GIFs are not spam
   return SPAM_PATTERNS.some(regex => regex.test(text));
+}
+
+function isGifOrPhotoComment(text) {
+  if (!text || text.trim().length === 0) return true; // Meta Graph API leaves text blank for GIFs, photos, and stickers
+  const lower = text.toLowerCase();
+  if (/giphy\.com|tenor\.com|cdninstagram\.com|\.gif(\?|$)|\[gif\]/i.test(lower)) return true;
+  if (lower.includes('shared an animated gif') || lower.includes('gif by') || lower.includes('[visual reaction]')) return true;
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -205,6 +206,12 @@ function getDynamicFallback(accountName, authorUsername) {
 }
 
 async function generateReply(accountConfig, authorUsername, commentText, reelCaption) {
+  // Account 2 Special Rule: GIFs and Photos receive the designated punchy reaction reply
+  if (accountConfig.name === 'account2' && isGifOrPhotoComment(commentText)) {
+    console.log(`   🎨 [Account 2 GIF/Photo Rule] Reaction reply: @${authorUsername} 😂❣️👌💯`);
+    return `@${authorUsername} 😂❣️👌💯`;
+  }
+
   // Use tested, high-quota working models first (excluding models with 429 quota exhaustion)
   const models = [
     'gemini-3.5-flash-lite',
@@ -284,6 +291,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const getRandomDelay = () => Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1)) + MIN_DELAY_MS;
 
 async function likeComment(igUserId, commentId, token, retries = 2) {
+  if (isDryRun) return true;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const url = `https://graph.facebook.com/v19.0/${igUserId}/likes?comment_id=${commentId}&access_token=${token}`;
@@ -342,10 +350,10 @@ async function logToSupabase(record) {
 // ═══════════════════════════════════════════════════════════════
 
 // Two-Tier scan strategy:
-// Fast Scan (every 60s): scans top 2 pages (100 most recent reels)
-// Deep Scan (every 4 hours): scans all pages (up to 750 reels)
+// Fast Scan (every 60s): scans top 2 pages (200 reels)
+// Deep Scan (every 2 hours): scans all pages (up to 1500 reels)
 let lastDeepScanTime = 0;
-const DEEP_SCAN_INTERVAL_MS = 4 * 60 * 60 * 1000;
+const DEEP_SCAN_INTERVAL_MS = 2 * 60 * 60 * 1000;
 
 async function processAccount(accountConfig, cache, isDeepScan = false) {
   const { name, username, igUserId, token } = accountConfig;
@@ -362,11 +370,12 @@ async function processAccount(accountConfig, cache, isDeepScan = false) {
   console.log(`===============================================================`);
 
   try {
-    // 1. Fetch catalog reels with embedded comments (fast: top 2 pages / 100 reels; deep: up to 15 pages / 750 reels)
+    // 1. Fetch catalog reels (lightweight list: id,caption,permalink,comments_count,timestamp)
     let posts = [];
-    let nextUrl = `https://graph.facebook.com/v19.0/${igUserId}/media?fields=id,caption,permalink,comments_count,timestamp,comments{id,text,username,timestamp,like_count,replies{id,text,username,timestamp}}&limit=50&access_token=${token}`;
+    let nextUrl = `https://graph.facebook.com/v19.0/${igUserId}/media?fields=id,caption,permalink,comments_count,timestamp&limit=100&access_token=${token}`;
     let pageCount = 0;
-    const maxPages = isDeepScan ? 15 : 2; // Fast scan checks top 2 pages (100 reels); Deep scan covers all 15 pages (750 reels)
+    // For Account 2 or deep scan, scan up to 15 pages (1500 reels) to ensure 100% of comments are found!
+    const maxPages = (isDeepScan || name === 'account2') ? 15 : 2;
 
     while (nextUrl && pageCount < maxPages) {
       pageCount++;
@@ -382,114 +391,98 @@ async function processAccount(accountConfig, cache, isDeepScan = false) {
       nextUrl = mediaData.paging?.next || null;
     }
 
-    console.log(`📊 Catalog indexed: ${posts.length} reels found across ${pageCount} page(s).`);
+    const postsWithComments = posts.filter(p => (p.comments_count || 0) > 0);
+    console.log(`📊 Catalog indexed: ${posts.length} reels found across ${pageCount} page(s) (${postsWithComments.length} with comments).`);
 
-    // 2. Identify candidate unreplied comments using embedded comments + pagination if needed
+    // 2. Identify candidate unreplied comments across reels with comments
     const candidates = [];
     let skippedUnchangedReels = 0;
 
-    for (const post of posts) {
-      const count = post.comments_count || 0;
-      if (count === 0) {
-        continue;
-      }
+    for (let i = 0; i < postsWithComments.length; i += 5) {
+      const batch = postsWithComments.slice(i, i + 5);
+      await Promise.all(batch.map(async (post) => {
+        const count = post.comments_count || 0;
+        const cachedCount = cache._media_counts[post.id];
 
-      const cachedCount = cache._media_counts[post.id];
-      // If count hasn't changed and was previously marked resolved, skip
-      if (cachedCount !== undefined && cachedCount === count) {
-        skippedUnchangedReels++;
-        continue;
-      }
+        // If count hasn't changed and not in deep scan, skip fetching comments
+        if (!isDeepScan && cachedCount !== undefined && cachedCount === count) {
+          skippedUnchangedReels++;
+          return;
+        }
 
-      let comments = post.comments?.data || [];
-      // Only if this specific post hit the 25 limit and comments_count indicates more do we fetch extra
-      if (comments.length >= 25 && count > comments.length) {
+        let comments = [];
         try {
           let cUrl = `https://graph.facebook.com/v19.0/${post.id}/comments?fields=id,text,username,timestamp,like_count,replies{id,text,username,timestamp}&limit=100&access_token=${token}`;
-          let fetched = [];
           let cPages = 0;
           while (cUrl && cPages < 3) {
             cPages++;
             const cRes = await fetch(cUrl);
             const cData = await cRes.json();
-            if (cData.data) fetched = fetched.concat(cData.data);
-            cUrl = cData.paging?.next || null;
+            if (cData.data && cData.data.length > 0) {
+              comments = comments.concat(cData.data);
+            } else {
+              break;
+            }
+            cUrl = (cData.data.length >= 100 && cData.paging?.next) ? cData.paging.next : null;
           }
-          if (fetched.length > 0) comments = fetched;
-        } catch(e) {}
-      }
+        } catch (err) {
+          console.warn(`⚠️ Could not fetch comments for post ${post.id}:`, err.message);
+        }
 
-      let allCommentsOnThisReelResolved = true;
+        let allCommentsOnThisReelResolved = true;
 
-      for (const comment of comments) {
-        const commentId = comment.id;
-        const author = comment.username;
-        let text = comment.text || '';
+        for (const comment of comments) {
+          const commentId = comment.id;
+          const author = comment.username;
+          const text = comment.text || '';
 
-        if (author && author.toLowerCase() === username.toLowerCase()) continue;
+          if (author && author.toLowerCase() === username.toLowerCase()) continue;
 
-        // If previously cached, make sure it has been liked on Instagram!
-        if (cache[commentId]) {
-          if (!cache[commentId].liked && !cache[commentId].like_checked) {
-            const liked = await likeComment(igUserId, commentId, token);
-            cache[commentId].liked = liked;
-            cache[commentId].like_checked = true;
-            if (liked) console.log(`   ❤️ Liked previously cached comment from @${author}`);
-            saveCache(cache);
+          // If previously cached, skip
+          if (cache[commentId] && cache[commentId].status !== 'SKIPPED_UNREPLYABLE') {
+            continue;
           }
-          continue;
-        }
 
-        const replies = comment.replies?.data || [];
-        const alreadyRepliedOnIG = replies.some(r => r.username?.toLowerCase() === username.toLowerCase());
-        if (alreadyRepliedOnIG) {
-          let liked = cache[commentId]?.liked;
-          if (!liked) {
-            liked = await likeComment(igUserId, commentId, token);
-            if (liked) console.log(`   ❤️ Liked existing comment from @${author} (ID: ${commentId})`);
+          const replies = comment.replies?.data || [];
+          const alreadyRepliedOnIG = replies.some(r => r.username?.toLowerCase() === username.toLowerCase());
+          if (alreadyRepliedOnIG) {
+            cache[commentId] = {
+              replied_at: new Date().toISOString(),
+              status: 'ALREADY_REPLIED_ON_IG',
+              author: author,
+              liked: true,
+              like_checked: true
+            };
+            continue;
           }
-          cache[commentId] = {
-            replied_at: new Date().toISOString(),
-            status: 'ALREADY_REPLIED_ON_IG',
-            author: author,
-            liked: liked,
-            like_checked: true
-          };
-          saveCache(cache);
-          continue;
+
+          const isGifOrPhoto = isGifOrPhotoComment(text);
+
+          if (!isGifOrPhoto && isSpam(text)) {
+            console.log(`🚫 Skipping spam comment from @${author}: "${text}"`);
+            cache[commentId] = {
+              replied_at: new Date().toISOString(),
+              status: 'SPAM_SKIPPED',
+              author: author
+            };
+            continue;
+          }
+
+          allCommentsOnThisReelResolved = false;
+          candidates.push({
+            commentId,
+            author,
+            text,
+            isGifOrPhoto,
+            post,
+            timestamp: new Date(comment.timestamp || 0).getTime()
+          });
         }
 
-        // Handle animated GIFs, stickers, or emoji-only reaction comments
-        if (!text || text.trim().length === 0) {
-          text = '❤️ [Shared an animated GIF / Sticker / Visual reaction]';
-        } else if (/giphy\.com|cdninstagram\.com|\.gif(\?|$)/i.test(text) || text.toLowerCase().includes('gif by')) {
-          text = `[Shared an animated GIF reaction: ${text.replace(/https?:\/\/\S+/gi, '').trim() || 'trending reaction'}]`;
+        if (allCommentsOnThisReelResolved) {
+          cache._media_counts[post.id] = count;
         }
-
-        if (isSpam(text)) {
-          console.log(`🚫 Skipping spam comment from @${author}: "${text}"`);
-          cache[commentId] = {
-            replied_at: new Date().toISOString(),
-            status: 'SPAM_SKIPPED',
-            author: author
-          };
-          saveCache(cache);
-          continue;
-        }
-
-        allCommentsOnThisReelResolved = false;
-        candidates.push({
-          commentId,
-          author,
-          text,
-          post,
-          timestamp: new Date(comment.timestamp || 0).getTime()
-        });
-      }
-
-      if (allCommentsOnThisReelResolved) {
-        cache._media_counts[post.id] = count;
-      }
+      }));
     }
     saveCache(cache);
 
@@ -508,15 +501,22 @@ async function processAccount(accountConfig, cache, isDeepScan = false) {
         break;
       }
 
-      const { commentId, author, text, post } = item;
+      const { commentId, author, text, isGifOrPhoto, post } = item;
 
       console.log(`\n💬 Processing comment on Reel (${post.permalink}):`);
       console.log(`   User: @${author}`);
-      console.log(`   Text: "${text}"`);
+      console.log(`   Type: ${isGifOrPhoto ? 'GIF / Photo / Sticker reaction' : 'Text comment'}`);
+      console.log(`   Text: "${text || '<GIF/PHOTO>'}"`);
 
-      // Generate Witty English Reply via Gemini (Dual-Key Round-Robin)
-      const replyText = await generateReply(accountConfig, author, text, post.caption);
-      console.log(`   ✨ AI Witty Reply: "${replyText}"`);
+      // Generate Reply: special GIF/photo rule for Account 2, or Witty AI for others
+      let replyText;
+      if (name === 'account2' && isGifOrPhoto) {
+        replyText = `@${author} 😂❣️👌💯`;
+        console.log(`   🎨 [Account 2 GIF/Photo Rule] Reaction reply: "${replyText}"`);
+      } else {
+        replyText = await generateReply(accountConfig, author, text, post.caption);
+        console.log(`   ✨ AI Witty Reply: "${replyText}"`);
+      }
 
       if (isDryRun) {
         console.log(`   🧪 [DRY RUN] Would like comment and post reply.`);
@@ -610,7 +610,7 @@ async function runCycle() {
 
   const isDeepScan = (Date.now() - lastDeepScanTime) > DEEP_SCAN_INTERVAL_MS;
   if (isDeepScan) {
-    console.log('🌐 [Comment Responder] Initiating 4-hour deep catalog scan across full history...');
+    console.log('🌐 [Comment Responder] Initiating 2-hour deep catalog scan across full history...');
   }
 
   for (const acc of accountsToProcess) {
@@ -619,7 +619,7 @@ async function runCycle() {
 
   if (isDeepScan) {
     lastDeepScanTime = Date.now();
-    console.log('✅ [Comment Responder] Deep catalog scan completed. Fast scans active for next 4 hours.');
+    console.log('✅ [Comment Responder] Deep catalog scan completed. Fast scans active for next 2 hours.');
   }
 }
 

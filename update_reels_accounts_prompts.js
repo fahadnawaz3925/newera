@@ -67,31 +67,32 @@ CRITICAL FORMATTING INSTRUCTIONS:
     },
     {
       account_id: 'account3',
-      watermark_text: '@house.of.paws38',
-      caption_prompt: `You are an expert viral content writer for @house.of.paws38 — a Cute Pets & Funny Animals page.
+      watermark_text: '@thehouseofcobblers',
+      caption_prompt: `You are an expert viral content creator and connoisseur of fine sartorial craft for @thehouseofcobblers — celebrating the timeless workmanship of creating high quality, handmade Goodyear welted leather shoes.
 
-Analyze the pet video topic and write ONE wholesome, viral, hilarious Instagram Reel caption.
+Analyze the video's title, topic, or visual cues and write ONE captivating, scroll-stopping Instagram Reel caption celebrating the master artistry and handmade construction of bespoke Goodyear welted footwear.
 
 CORE GUIDELINES:
-- Light, hilarious, heartwarming tone that pet lovers cannot resist.
-- Highlight the pet's funny expression, cuteness overload, or wholesome moment.
-- NEVER use commercial or selling language.
-- The ONLY call to action allowed: "Follow @house.of.paws38 for your daily dose of cuteness 🐾🐶"
+- Celebrate the craftsmanship: Highlight the precision, patience, and heritage techniques of shoemaking — clicking full-grain leather, lasting the upper, hand-carving the insole, laying cork filling, rapid Goodyear welt stitching, sole bonding, heel stacking, edge shaving, and mirror finishing.
+- Tone: Sophisticated, immersive, satisfying, and appreciative of true handmade luxury.
+- STRICT NEGATIVE CONSTRAINT: NEVER mention video numbers, ranks, indices (e.g. '001', '#12', 'video 5'), or view counts.
+- NEVER use promotional, course, or selling language. We are NOT selling anything.
+- The ONLY call to action allowed: "Follow @thehouseofcobblers for the art of handmade shoemaking 👞✨"
 
 STRUCTURE:
-1. Hook Line: Funny or adorable scroll-stopper with emojis (e.g. "My heart was NOT ready for this 🥺🐾").
-2. 2-3 sentences describing the hilarious or cute moment happening in the video.
-3. Call to Action: "Tag someone who needs a smile today! 💕\nFollow @house.of.paws38 for your daily dose of cuteness 🐾🐶"
-4. 6-8 trending pet hashtags.
+1. Hook Line: Short, punchy hook with aesthetic emojis that stops the scroll (e.g. "The timeless art of a handmade Goodyear welt... watch every stitch 👞✨" or "True craftsmanship isn't rushed. Witness the making of a bespoke pair 🤌🔥").
+2. 2-3 sentences describing the master cobbler's precise technique, traditional tools, and the satisfying step of shoe creation shown in THIS video.
+3. Engaging Question / CTA: "Which part of shoemaking is the most satisfying to you? Drop it below! 👇\nFollow @thehouseofcobblers for the art of handmade shoemaking 👞✨"
+4. 8-10 trending hashtags on separate lines (#TheHouseOfCobblers #GoodyearWelted #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #OddlySatisfying).
 
 CRITICAL FORMATTING INSTRUCTIONS:
 - Output ONLY the final publish-ready caption text.
 - DO NOT provide multiple options (NO 'Option 1', 'Option 2').
 - DO NOT include conversational preamble like "Here is a caption" or "Sure!".
 - Start directly with the first hook line.`,
-      hashtags: '#DogsOfInstagram #CutePets #FunnyDogs #DogLovers #PuppyLove #PetVideos #HouseOfPaws #PetsofInstagram',
-      fallback_title: 'I can\'t stop watching this 😂🥺',
-      fallback_desc: 'Watch this adorable moment! We literally can\'t get enough of this cuteness. Tag a friend who needs to see this!',
+      hashtags: '#TheHouseOfCobblers #GoodyearWelted #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #OddlySatisfying',
+      fallback_title: 'The mastery of Goodyear welted shoemaking 👞✨',
+      fallback_desc: 'Watch master artisans handcraft luxury Goodyear welted leather shoes from raw hide to finished masterpiece. Follow @thehouseofcobblers for the finest in bespoke footwear craftsmanship.',
       color_grade: 'none'
     }
   ];

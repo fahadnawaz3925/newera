@@ -589,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${logHtml}
             <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px; display: flex; align-items: center; gap: 6px;">
               <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">
-                ${item.account_id === 'account3' ? 'Account 3 (@house.of.paws38)' : (item.account_id === 'account2' ? 'Account 2 (@buffedboujee)' : 'Account 1 (@faith.canvas.99)')}
+                ${item.account_id === 'account3' ? 'Account 3 (@thehouseofcobblers)' : (item.account_id === 'account2' ? 'Account 2 (@buffedboujee)' : 'Account 1 (@faith.canvas.99)')}
               </span>
               Queued: ${new Date(item.created_at).toLocaleString()}
             </div>
@@ -613,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${logHtml}
             <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px; display: flex; align-items: center; gap: 6px;">
               <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">
-                ${item.account_id === 'account3' ? 'Account 3 (@house.of.paws38)' : (item.account_id === 'account2' ? 'Account 2 (@buffedboujee)' : 'Account 1 (@faith.canvas.99)')}
+                ${item.account_id === 'account3' ? 'Account 3 (@thehouseofcobblers)' : (item.account_id === 'account2' ? 'Account 2 (@buffedboujee)' : 'Account 1 (@faith.canvas.99)')}
               </span>
               Queued: ${new Date(item.created_at).toLocaleString()}
             </div>
