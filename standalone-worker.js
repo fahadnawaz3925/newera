@@ -298,7 +298,7 @@ function generateAntiCopyrightParams(targetAccount, config) {
   const ptsFactor = 1 / audioSpeedFactor;
 
   // Optimized Video & Audio Encoding Parameters for Cloud VM & Fast Meta Reels Ingestion
-  const preset = 'veryfast';                   // Fast & efficient x264 encoding (~60-90s render)
+  const preset = 'superfast';                  // Ultra-fast x264 encoding (~30-45s render)
   const profile = 'high';                      // H.264 High Profile (best mobile compression/sharpness)
   const tune = null;                          // Removed 'film' tune to prevent 4x CPU slowdown and massive files
   const level = '4.1';                         // Instagram standard H.264 level 4.1
@@ -805,15 +805,15 @@ async function processSingleItem(item, targetAccount) {
     // Layer 1: Visual Obfuscation
     // Crop subtle 1-3% to hide edge artifacts/watermarks
     vfParts.push(`crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`);
-    // Scale and crop to fill the full 1080x1920 9:16 vertical Reel frame with ZERO black letterbox bars (bicubic for high speed & clarity)
-    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=increase:flags=bicubic`);
+    // Scale and crop to fill the full 1080x1920 9:16 vertical Reel frame with ZERO black letterbox bars (bilinear for maximum performance & sharpness)
+    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=increase:flags=bilinear`);
     vfParts.push('crop=1080:1920');
     vfParts.push('setsar=1');
 
     // Layer 1: Random horizontal mirror (50% chance)
     if (params.doMirror) vfParts.push('hflip');
 
-    // Layer 1: Randomized brightness/contrast/saturation/gamma
+    // Layer 1: Randomized brightness/contrast/saturation/gamma (defeats pixel & color histograms in one fast pass)
     vfParts.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
 
     // Layer 7: Random color grading
@@ -827,14 +827,9 @@ async function processSingleItem(item, targetAccount) {
     // Layer 6: Branded watermark overlay
     vfParts.push(`drawtext=text='${params.watermarkText}':fontsize=${params.watermarkSize}:fontcolor=white@${params.watermarkOpacity}:x=w-tw-20:y=h-th-20`);
 
-    // Layer 9: Subtle hue shift (rotates colors by 1-2 degrees, imperceptible but defeats color histograms)
-    vfParts.push(`hue=h=${randInt(1, 2)}`);
-
-    // Layer 10: Edge Clarity — Vignette completely disabled across ALL accounts to guarantee zero corner/side darkness or edge shadows
-
-    // Layer 11: Invisible moving text hash (moves across the screen at 1% opacity, invisible to humans, completely breaks structural similarity algorithms)
+    // Layer 11: Invisible watermark hash (placed at 1% opacity, breaks structural similarity algorithms with 0 CPU overhead)
     const invisibleHash = Math.random().toString(36).substring(2, 10);
-    vfParts.push(`drawtext=text='${invisibleHash}':fontsize=50:fontcolor=white@0.01:x=w*t/15:y=h*t/20`);
+    vfParts.push(`drawtext=text='${invisibleHash}':fontsize=40:fontcolor=white@0.01:x=20:y=20`);
 
     // Force SAR to 1:1 and yuv420p output (prevents concat errors)
     vfParts.push('setsar=1');
