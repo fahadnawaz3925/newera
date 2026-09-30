@@ -389,7 +389,7 @@ function cleanVideoTitle(rawTitle) {
   title = title.replace(/^\d+[a-zA-Z_]+[\s_+%-]*/, '');
 
   // 4. Remove account handles embedded in file names
-  title = title.replace(/buffedboujee|faith\.?canvas(\.99)?|house\.?of\.?paws(38)?/gi, '');
+  title = title.replace(/buffedboujee|faith\.?canvas(\.99)?|house\.?of\.?paws(38)?|thehouseofcobblers?/gi, '');
 
   // 5. Remove long numeric ID tokens (e.g. "00000253155")
   title = title.replace(/\b\d{4,}\b/g, '');
@@ -514,7 +514,7 @@ CORE RULES:
 - 8-10 trending hashtags (#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds).
 Start directly with the hook line.`;
     } else if (targetAccount === 'account3') {
-      prompt = `Write a wholesome, viral Instagram reel caption for @house.of.paws38 (cute pets). Use emojis and hashtags. Start directly with the hook line.`;
+      prompt = `Write a captivating Instagram reel caption for @thehouseofcobblers celebrating handmade Goodyear welted leather shoe craftsmanship. Use emojis and hashtags. Start directly with the hook line.`;
     } else {
       prompt = `Write a viral, heartfelt Islamic reflection Instagram reel caption for @faith.canvas.99. Use emojis and hashtags. Start directly with the hook line.`;
     }
@@ -590,9 +590,9 @@ Start directly with the hook line.`;
     const descLine = `Watch this deeply satisfying transformation — worn leather brought back to life with a flawless mirror shine. The crisp ASMR sounds are pure therapy 🤌✨`;
     return cleanAndSanitizeCaption(`${titleHook}\n\n${descLine}\n\nRate this shine from 1 to 10! 👇\nFollow @buffedboujee for more satisfying content 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds`, targetAccount);
   } else if (targetAccount === 'account3') {
-    const titleLine = isMeaningfulTitle ? `🐶 ${videoTitleClean}` : `I can't stop watching this 😂🥺`;
-    const descLine = `Watch this adorable moment! We literally can't get enough of this cuteness. Tag a friend who needs to see this!`;
-    return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @house.of.paws38 for your daily dose of cuteness 🐾🐶\n\n#DogsOfInstagram #CutePets #FunnyDogs #DogLovers #PuppyLove #PetVideos #HouseOfPaws`, targetAccount);
+    const titleLine = isMeaningfulTitle ? `👞 ${videoTitleClean}` : `The mastery of Goodyear welted shoemaking 👞✨`;
+    const descLine = `Watch master artisans handcraft luxury Goodyear welted leather shoes from raw hide to finished masterpiece.`;
+    return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @thehouseofcobblers for the art of handmade shoemaking 👞✨\n\n#TheHouseOfCobblers #GoodyearWelted #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #OddlySatisfying`, targetAccount);
   } else {
     const titleLine = isMeaningfulTitle ? `✨ ${videoTitleClean}` : `A reminder your soul needed right now 🤲💚`;
     const descLine = `In the quiet moments of life, turn your heart to Allah. He is closer to you than you think. Trust His plan, even when the path feels unclear.`;
