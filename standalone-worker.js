@@ -709,22 +709,29 @@ async function processSingleItem(item, targetAccount) {
       const maxRetries = Math.max(1, Math.min(3, IG_PROXIES.length || 1));
       
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const isSelfHosted = item.url.includes('80.225.198.44') || item.url.includes('92.4.70.128') || item.url.includes('127.0.0.1') || item.url.includes('localhost');
+
         const ytDlpOptions = [
           '-o', tempFileTemplate, 
           '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best', 
           '--no-playlist', 
-          '--merge-output-format', 'mp4',
-          '--sleep-requests', '3',
-          '--sleep-interval', '10',
-          '--max-sleep-interval', '30',
-          '--fragment-retries', '5'
+          '--merge-output-format', 'mp4'
         ];
+
+        if (!isSelfHosted) {
+          ytDlpOptions.push(
+            '--sleep-requests', '3',
+            '--sleep-interval', '10',
+            '--max-sleep-interval', '30',
+            '--fragment-retries', '5'
+          );
+        }
 
         if (cookiePath && item.url.includes('instagram.com')) {
           ytDlpOptions.push('--cookies', cookiePath);
         }
 
-        const proxy = getNextProxy();
+        const proxy = isSelfHosted ? null : getNextProxy();
         if (proxy) {
           // Hide password in logs
           const safeProxyLog = proxy.includes('@') ? proxy.split('@').pop() : proxy;
