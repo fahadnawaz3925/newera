@@ -390,7 +390,7 @@ function cleanVideoTitle(rawTitle) {
   title = title.replace(/^\d+[a-zA-Z_]+[\s_+%-]*/, '');
 
   // 4. Remove account handles embedded in file names
-  title = title.replace(/buffedboujee|faith\.?canvas(\.99)?|house\.?of\.?paws(38)?|thehouseofcobblers?/gi, '');
+  title = title.replace(/buffedboujee|faith\.?canvas(\.99)?|house\.?of\.?paws(38)?|thehouseofcobblers?|pelleelegantee?/gi, '');
 
   // 5. Remove long numeric ID tokens (e.g. "00000253155")
   title = title.replace(/\b\d{4,}\b/g, '');
@@ -517,7 +517,7 @@ Start directly with the hook line.`;
     } else if (targetAccount === 'account3') {
       prompt = `Write a captivating Instagram reel caption for @thehouseofcobblers celebrating handmade Goodyear welted leather shoe craftsmanship. Use emojis and hashtags. Start directly with the hook line.`;
     } else {
-      prompt = `Write a viral, heartfelt Islamic reflection Instagram reel caption for @faith.canvas.99. Use emojis and hashtags. Start directly with the hook line.`;
+      prompt = `Write an aesthetic, captivating Instagram reel caption for @pelleelegantee celebrating luxury handmade bespoke leather shoemaking and artisanal craft. Use emojis and hashtags. Start directly with the hook line.`;
     }
     if (videoContext) prompt = `${videoContext}\n\n${prompt}`;
   }
@@ -595,9 +595,9 @@ Start directly with the hook line.`;
     const descLine = `Watch master artisans handcraft luxury Goodyear welted leather shoes from raw hide to finished masterpiece.`;
     return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @thehouseofcobblers for the art of handmade shoemaking 👞✨\n\n#TheHouseOfCobblers #GoodyearWelted #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #OddlySatisfying`, targetAccount);
   } else {
-    const titleLine = isMeaningfulTitle ? `✨ ${videoTitleClean}` : `A reminder your soul needed right now 🤲💚`;
-    const descLine = `In the quiet moments of life, turn your heart to Allah. He is closer to you than you think. Trust His plan, even when the path feels unclear.`;
-    return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @faith.canvas.99 for daily reminders 🤲🕊️\n\n#Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa`, targetAccount);
+    const titleLine = isMeaningfulTitle ? `👞 ${videoTitleClean}` : `The mastery of handmade leather shoes 👞✨`;
+    const descLine = `Watch master artisans handcraft luxury bespoke leather shoes with exquisite precision. Pure artisanal elegance in every detail.`;
+    return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @pelleelegantee for the finest in handmade luxury shoes 👞✨\n\n#PelleElegante #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #OddlySatisfying`, targetAccount);
   }
 }
 

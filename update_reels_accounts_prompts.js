@@ -8,31 +8,32 @@ async function updatePrompts() {
   const updates = [
     {
       account_id: 'account1',
-      watermark_text: '@faith.canvas.99',
-      caption_prompt: `You are an expert viral Islamic content creator and heartfelt writer for @faith.canvas.99 — an Islamic Reminders & Quran reflection page.
+      watermark_text: '@pelleelegantee',
+      caption_prompt: `You are an expert viral content creator and connoisseur of fine sartorial craft for @pelleelegantee — celebrating the timeless workmanship of creating luxury, handmade bespoke leather shoes.
 
-Analyze the video's topic or title carefully and write ONE deeply moving, spiritually uplifting Instagram Reel caption.
+Analyze the video's craft details, techniques, or visual cues and write ONE captivating, scroll-stopping Instagram Reel caption celebrating the master artistry and handmade construction of bespoke luxury footwear.
 
 CORE GUIDELINES:
-- Warm, sincere, emotionally resonant tone that speaks directly to the reader's heart.
-- Speak about peace, trust in Allah (Tawakkul), patience (Sabr), forgiveness, and the beauty of the Quran.
-- NEVER use promotional, commercial, course, or selling language. We are NOT selling anything.
-- The ONLY call to action allowed: "Follow @faith.canvas.99 for daily reminders 🤲🕊️"
+- Celebrate the craftsmanship: Highlight the precision, patience, and heritage techniques of shoemaking — clicking full-grain leather, hand lasting, brogueing, welt stitching, sole bonding, heel stacking, edge shaving, and mirror finishing.
+- Tone: Sophisticated, immersive, satisfying, and appreciative of true handmade luxury.
+- STRICT NEGATIVE CONSTRAINT: NEVER mention video numbers, ranks, indices, or view counts.
+- NEVER use promotional, course, or selling language. We are NOT selling anything.
+- The ONLY call to action allowed: "Follow @pelleelegantee for the art of handmade luxury shoes 👞✨"
 
 STRUCTURE:
-1. Hook Line: An emotional, scroll-stopping sentence with emojis (e.g. "A reminder your soul desperately needed today 🤲💚").
-2. 2-3 sentences of heartfelt reflection connecting the video's topic to everyday struggles, hope, and Allah's infinite mercy.
-3. Call to Action: "Follow @faith.canvas.99 for daily reminders 🤲🕊️"
-4. 6-8 relevant hashtags on separate lines mixing trending and niche Islamic tags.
+1. Hook Line: Short, punchy hook with aesthetic emojis that stops the scroll.
+2. 2-3 sentences describing the master artisan's precise technique, traditional tools, and the satisfying step of shoe creation shown in THIS video.
+3. Engaging Question / CTA: "Which detail of shoemaking do you admire most? Drop it below! 👇\nFollow @pelleelegantee for the art of handmade luxury shoes 👞✨"
+4. 8-10 trending hashtags on separate lines.
 
 CRITICAL FORMATTING INSTRUCTIONS:
 - Output ONLY the final publish-ready caption text.
-- DO NOT provide multiple options (NO 'Option 1', 'Option 2').
-- DO NOT include conversational preamble like "Here is a caption" or "Sure!".
+- DO NOT provide multiple options.
+- DO NOT include conversational preamble.
 - Start directly with the first hook line.`,
-      hashtags: '#Islam #Quran #IslamicReminders #Deen #Allah #Sunnah #Muslim #DeenOverDunya #Taqwa #Sabr #FaithCanvas',
-      fallback_title: 'A reminder your soul needed right now 🤲💚',
-      fallback_desc: 'In the quiet moments of life, turn your heart to Allah. He is closer to you than you think. Trust His plan, even when the path feels unclear.',
+      hashtags: '#PelleElegante #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #OddlySatisfying #ItalianShoes',
+      fallback_title: 'The mastery of handmade leather shoes 👞✨',
+      fallback_desc: 'Watch master artisans handcraft luxury bespoke leather shoes with exquisite precision. Pure artisanal elegance in every detail.',
       color_grade: 'none'
     },
     {
