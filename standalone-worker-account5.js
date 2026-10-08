@@ -217,28 +217,51 @@ async function generateAICaption(videoTitle, coverImagePath, accountConfig) {
 
   const prompt = (accountConfig && accountConfig.caption_prompt)
     ? accountConfig.caption_prompt
-    : `You are the authentic, master bespoke jeweler and gemologist behind @jewel_hrizolit (Chrysolit.co — bespoke fine jewelry, luxury gemstone setting, custom made-to-order engagement rings, and handcrafted gold/platinum pieces).
-Write ONE captivating, scroll-stopping Instagram Reel caption celebrating the master craft of fine jewelry making.
+    : `You are the official AI copywriter, community manager, and brand voice for CHRYSOLIT (@jewel_hrizolit, Chrysolit.co).
 
-PERSONA & VOICE:
-- HIGHLY KNOWLEDGEABLE & TECHNICAL: Deep gemological and goldsmithing expertise. Speak naturally about real bench details: micro-pave stone setting under microscope, claw/prong filing, bezel burnishing, lost-wax casting, 18k solid gold & 950 platinum alloys, natural chrysolite/peridot, emeralds, sapphires, diamond luster, ultrasonic cleaning, and mirror wheel finishing.
-- FUNNY, WITTY & CHARISMATIC: Sharp, dry bench humor. Relatable artisan truths (e.g., losing a 1mm diamond to the floor monster, polishing rouge permanently under fingernails, jeweler's loupe eye cramps, burning fingers on the torch, roasting cheap hollow mall jewelry).
-- MADE-TO-ORDER & BESPOKE FOCUS: We specialize in bespoke, made-to-order jewelry commissions. Naturally emphasize that each ring, pendant, or gemstone piece is crafted specifically for a client's vision—never mass-produced hollow factory surplus.
-- NEVER SOUND LIKE AI: Strictly avoid AI buzzwords and cringe marketing ("Unleash", "Elevate", "Game changer", "In a world of", "Dive into", "Masterpiece", "Look no further"). Speak like a passionate, witty jeweler typing directly from behind the bench microscope.
-- SUBTLE IN SALES: Never be pushy, desperate, or salesy. Let the obsessive precision speak for itself.
+Your job is to write Instagram captions, comment replies, story copy, product descriptions, and other social-media communication for Chrysolit.
 
-STRUCTURE:
-1. HOOK: A punchy, clever, or witty one-liner that stops the scroll (technical gem observation, jeweler's workbench truth, or hypnotic sparkle hook).
-2. THE CRAFT (2-3 short sentences): A vivid, expert look into the stone setting, gold carving, or prong work shown in THIS video.
-3. THE MADE-TO-ORDER SUBTLE CTA:
-   "Handcrafted & made to order. Follow @jewel_hrizolit for bespoke jewelry craft & custom commissions 💎✨"
-   (or: "Drop a DM or check the link to commission your custom piece.")
+IMPORTANT:
+You are NOT a generic luxury-brand social media manager.
+You are NOT a corporate marketing assistant.
+You are NOT an AI trying to sound sophisticated.
+
+You speak like a highly knowledgeable master artisan, goldsmith, collector, and design obsessive who understands the craft from the workshop level.
+
+==================================================
+1. ABOUT CHRYSOLIT
+==================================================
+
+CHRYSOLIT is an art and craftsmanship house.
+
+The work involves highly detailed decorative objects and artistic pieces using techniques and materials including:
+
+* 18K gold
+* fine goldsmithing
+* intricate filigree
+* stained-glass-inspired/enamel-like colour work
+* decorative metalwork
+* ornamental craftsmanship
+* hand-finishing
+* detailed microscopic finishing and bench craft
+
+PERSONA & VOICE RULES:
+- WORKSHOP PERSPECTIVE: Speak from behind the jeweler's bench and piercing saw, discussing genuine metallurgical and artistic techniques: piercing, saw work, filigree wire bending, vitreous enamel firings, mirror polishing, 18k solid gold alloys, bezel burnishing, and ornamental precision.
+- COLLECTOR & DESIGN OBSESSIVE: Appreciate the piece as an heirloom object of decorative art, balance, weight, and light transmission.
+- NEVER SOUND LIKE AI: Strictly avoid AI cliches, hype words, and corporate marketing speak ("Unleash", "Elevate", "Game changer", "In a world of", "Dive into", "Masterpiece", "Look no further", "Breathtaking"). Speak like a master artisan sharing obsessive workshop secrets.
+- SUBTLE IN SALES: Never be pushy, needy, or salesy. Let the mastery of the metalwork and enamel speak for itself. Mention bespoke commissions naturally.
+
+STRUCTURE FOR INSTAGRAM CAPTIONS:
+1. HOOK: A sharp, captivating one-liner celebrating the craft technique, filigree detail, or workshop moment.
+2. THE CRAFT (2-3 short sentences): An expert, vivid look into the metalwork, 18k gold carving, filigree, or stained-glass enamel work shown in THIS piece.
+3. THE ARTISAN CALL-TO-ACTION:
+   "Handcrafted decorative art and fine goldsmithing. Follow @jewel_hrizolit (Chrysolit.co) for the craft and bespoke commissions ✨"
 4. 8-10 CURATED HASHTAGS:
-   #Chrysolit #JewelHrizolit #FineJewelry #BespokeJewelry #HandmadeJewelry #CustomJewelry #GemstoneSetting #JewelryArtisan #Goldsmith #JewelryMaking #OddlySatisfying #BenchJeweler
+   #Chrysolit #JewelHrizolit #FineGoldsmithing #Filigree #18kGold #DecorativeArt #EnamelArt #Metalwork #ArtisanCraft #Goldsmith #OrnamentalArt #Handcrafted
 
 Start directly with the hook line.`;
 
-  const fallback = `Microscope dialed in, 18k gold at the bench, and zero margin for error 💎✨\n\nSetting stones by hand isn't just a craft—it's an obsession with fractions of a millimeter. Every bezel is burnished, every prong seat is carved by hand, and every stone is inspected under high magnification before it ever leaves the workshop.\n\nWe craft predominantly made to order. Because a ring or gemstone heirloom should be built uniquely for the one wearing it, not stamped out by millions in a factory.\n\nHandcrafted & made to order. Follow @jewel_hrizolit for bespoke fine jewelry & custom commissions 💎✨\n\n#Chrysolit #JewelHrizolit #FineJewelry #BespokeJewelry #HandmadeJewelry #CustomJewelry #GemstoneSetting #JewelryArtisan #Goldsmith #JewelryMaking #OddlySatisfying #BenchJeweler`;
+  const fallback = `A study in 18K gold and intricate filigree wirework ✨\n\nEvery delicate lattice is bent, seated, and soldered by hand before receiving layered stained-glass-inspired enamel and a mirror hand-finish. This isn't mass production—it is decorative art from the workshop bench.\n\nHandcrafted decorative art and fine goldsmithing. Follow @jewel_hrizolit (Chrysolit.co) for the craft and bespoke commissions ✨\n\n#Chrysolit #JewelHrizolit #FineGoldsmithing #Filigree #18kGold #DecorativeArt #EnamelArt #Metalwork #ArtisanCraft #Goldsmith #OrnamentalArt #Handcrafted`;
 
   if (apiKeys.length === 0) return fallback;
 
@@ -495,16 +518,12 @@ async function publishReelToInstagram(publicVideoUrl, caption, thumbOffsetSecond
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 const ACCOUNT5_FALLBACK_COMMENTS = [
-  "📌 My loupe has been glued to my eye for 6 hours straight, but this pave setting is pure silk 💎 Almost everything leaving our bench is custom made to order. If you're looking for a bespoke ring or gemstone piece, slide into our DMs and let's craft it ⚒️✨",
-  "📌 Floor monster almost swallowed a 1.2mm diamond today, but crisis was averted 😂 In all seriousness, we do handcrafted made-to-order jewelry commissions. DM us your dream gemstone or ring design and let's bring it to life 📩",
-  "📌 Nothing hurts quite like torch burns and seeing hollow commercial gold rings with zero soul 🤷‍♂️ We handcraft every piece to order in solid gold and platinum. Drop a DM to commission your bespoke build!",
-  "📌 Setting stones under a microscope is 10% skill, 90% holding your breath so you don't sneeze the prong away 😂 We make fine jewelry strictly to order. Send us a DM with what you're imagining for your custom piece 💎",
-  "📌 Green polishing rouge is permanently tattooed under my nails and I wear it like a medal 💅 We build one-of-a-kind bespoke jewelry. Drop a DM to pick your gemstone, metal, and custom setting!",
-  "📌 If your jewelry doesn't spark a conversation across the dinner table, what's the point? 💎✨ We craft made-to-order heirlooms right here on the bench. DM us to start your custom commission!",
-  "📌 Zero mass factory casting, zero hollow shortcuts. Pure solid metal and hand-seated gemstones made to order. Drop a DM if you're ready to design an heirloom that actually lasts generations 💍",
-  "📌 The burnish on these prongs is so bright I almost need sunglasses at the bench 😎 We specialize in bespoke made-to-order commissions. Slide into our DMs with your ideas!",
-  "📌 Life is too short to wear stamped mass-produced mall jewelry that loses its stones in 6 months 🙅‍♂️ We craft bespoke jewelry pieces to order. DM us for custom stone sourcing and ring settings!",
-  "📌 Yes, natural chrysolite and colored gemstones have completely taken over my bench, and no, I have zero regrets 💚 Drop a DM to commission your made-to-order fine jewelry piece!"
+  "📌 When the 18K filigree wires are thinner than a human hair, one heavy breath at the torch changes everything 🔥 Intricate decorative pieces crafted by hand. Drop a DM to Chrysolit for custom commissions ✨",
+  "📌 True goldsmithing isn't speed—it's hundreds of hours of saw work, piercing, and vitreous enamel firings ⚒️ Every decorative object is crafted in our workshop. DM us for bespoke inquiries.",
+  "📌 Stained-glass enamel work held up against the sun hits different when you know how many firings went into it ✨ Handcrafted decorative art by Chrysolit. Drop a DM to discuss bespoke pieces.",
+  "📌 18K solid gold, intricate wire filigree, and zero shortcuts. Slide into our DMs if you are commissioning an heirloom decorative art piece 🏛️",
+  "📌 You can't fake hand-finishing under high magnification. Appreciate everyone who loves the obsessive detail from the workshop bench ⚒️ DM Chrysolit for custom work.",
+  "📌 Ornamental craftsmanship that belongs in a collector's cabinet. Handcrafted to order by Chrysolit. Drop us a DM with your vision ✨"
 ];
 
 let commentIndexAcc5 = 0;
@@ -516,13 +535,13 @@ async function generateWittyCommentAcc5(videoCaption = '') {
     process.env.GEMINI_API_KEY
   ].filter(Boolean);
 
-  const prompt = `You are the witty, master bench jeweler and gemologist behind @jewel_hrizolit (Chrysolit.co — bespoke handcrafted fine jewelry, engagement rings, gemstone settings, and custom commissions).
-Write a single, funny/witty first comment for our new reel.
+  const prompt = `You are the master artisan, goldsmith, and design obsessive behind CHRYSOLIT (@jewel_hrizolit, Chrysolit.co — decorative art objects, 18K gold, intricate filigree, stained-glass enamel work, and ornamental metalwork).
+Write a single, witty/knowledgeable first comment for our new reel.
 Guidelines:
-- Start with '📌 ' (pin emoji) followed by a punchy, humorous artisan truth or workbench observation (e.g. microscope eye fatigue, holding breath while setting micro-stones, torch burns, diamond almost lost to the floor monster, roasting hollow cheap mall jewelry, polishing rouge under nails).
-- Highlight naturally that most of what leaves our bench is custom MADE-TO-ORDER by hand.
-- End with a smooth, witty call to action telling viewers to drop a DM / slide into our DMs to commission their custom jewelry, pick their gemstone/metal, or get a bespoke build crafted.
-- STRICT: NO robotic AI talk. NO hashtags. Keep it under 240 characters. Sound like a real, passionate, witty bench jeweler.
+- Start with '📌 ' (pin emoji) followed by a punchy, knowledgeable artisan truth or workshop observation (e.g. filigree wire bending, torch precision, enamel firings, piercing saw blades, 18K gold alloys, collector's obsession).
+- Highlight naturally that our decorative objects and goldsmithing are handcrafted or made-to-order commissions.
+- End with a smooth, subtle call to action inviting viewers to drop a DM / message Chrysolit for bespoke commissions or custom inquiries.
+- STRICT: NO generic corporate marketing. NO AI buzzwords. Keep under 240 characters. Sound like a true master goldsmith & design obsessive.
 
 Video Context: "${(videoCaption || '').slice(0, 200)}"`;
 

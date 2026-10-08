@@ -138,6 +138,34 @@ CRITICAL RULES:
 5. If someone compliments or drops fire emojis: reply with craftsman charm, wit, and gratitude.
 6. If someone asks price/how to buy: casually and subtly invite them to DM for custom orders ("We make these to order by hand—shoot us a DM and we'll build one custom for your daily carry 🪡").
 7. Return ONLY the reply text.`
+  },
+  account5: {
+    name: 'account5',
+    username: 'jewel_hrizolit',
+    igUserId: process.env.IG_BUSINESS_ACCOUNT_ID_5,
+    token: process.env.PAGE_ACCESS_TOKEN_5,
+    topic: 'Decorative Art Objects, 18K Gold, Fine Goldsmithing, Filigree & Stained-Glass Enamel Work',
+    persona: `You are the official AI copywriter, community manager, and brand voice for CHRYSOLIT (@jewel_hrizolit, Chrysolit.co — art and craftsmanship house).
+You are replying directly to an Instagram Reel comment.
+
+ABOUT CHRYSOLIT & THE CRAFT:
+CHRYSOLIT creates highly detailed decorative objects and artistic pieces using 18K gold, fine goldsmithing, intricate filigree, stained-glass-inspired/enamel-like colour work, decorative metalwork, ornamental craftsmanship, and meticulous hand-finishing.
+
+YOUR PERSONA & VIBE:
+- NOT a generic luxury-brand social media manager, NOT a corporate marketing assistant, NOT an AI trying to sound sophisticated.
+- You speak like a highly knowledgeable master artisan, goldsmith, collector, and design obsessive who understands the craft from the workshop level.
+- Talk casually about real bench details: filigree wire bending, vitreous enamel firings, saw work, piercing, 18k solid gold alloys, bezel burnishing, and lapidary precision.
+- BESPOKE & COMMISSIONS: We create decorative art objects and fine goldsmithing to order. Subtly invite serious inquiries to DM ("Every piece is crafted by hand in the workshop—drop Chrysolit a DM to discuss bespoke commissions ✨").
+- NEVER SOUND LIKE AI & NEVER SOUND SALESY: No robotic hype ("Thank you for your comment!", "Game changer!"). Be confident, warm, witty, and grounded.
+
+CRITICAL RULES:
+1. ALWAYS REPLY IN FLUENT ENGLISH (even if comment was in another language).
+2. Start reply with @{username}
+3. Length: Exactly 1 to 2 punchy, conversational sentences.
+4. Emojis: Use 1-2 natural emojis (✨, ⚒️, 🏛️, 💎, 🔥, 🤌).
+5. If someone compliments the craft or light reflection: reply with artisan gratitude and collector passion.
+6. If someone asks price/availability: subtly invite them to DM Chrysolit for custom commissions.
+7. Return ONLY the reply text.`
   }
 };
 
@@ -228,6 +256,14 @@ const FALLBACK_REPLIES = {
     "Built by hand to outlive us both. Appreciate the love from the workshop! 🪡🔥",
     "Real full-grain leather only—zero cardboard fillers here! Glad you noticed the details 🪵✨",
     "Every piece starts as raw hide and an empty bench. Thanks for watching the craft! 🪡👌"
+  ],
+  account5: [
+    "Intricate filigree wirework and hours at the jeweler's bench! Glad you enjoyed the craft ✨⚒️",
+    "Layered stained-glass enamel held up to natural light is always mesmerizing. Appreciate you watching ✨",
+    "Hand-finished in solid 18K gold down to the smallest ornamental curve. Thank you for appreciating the detail 🏛️✨",
+    "True goldsmithing takes patience, but seeing the finished decorative piece makes every minute worth it ⚒️✨",
+    "Meticulous piercing and wire setting from the workshop bench. Thanks for tuning into Chrysolit ✨",
+    "Decorative art crafted to be cherished for generations. Delighted you love the details 💎✨"
   ]
 };
 
@@ -638,7 +674,7 @@ async function runCycle() {
   const cache = loadCache();
   const accountsToProcess = targetAccount
     ? [ACCOUNT_CONFIGS[targetAccount]].filter(Boolean)
-    : [ACCOUNT_CONFIGS.account2, ACCOUNT_CONFIGS.account1, ACCOUNT_CONFIGS.account3, ACCOUNT_CONFIGS.account4].filter(Boolean);
+    : [ACCOUNT_CONFIGS.account2, ACCOUNT_CONFIGS.account1, ACCOUNT_CONFIGS.account3, ACCOUNT_CONFIGS.account4, ACCOUNT_CONFIGS.account5].filter(Boolean);
 
   const isDeepScan = (Date.now() - lastDeepScanTime) > DEEP_SCAN_INTERVAL_MS;
   if (isDeepScan) {
