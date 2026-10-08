@@ -677,6 +677,12 @@ async function mainLoop() {
 
   while (true) {
     try {
+      if (!IG_BUSINESS_ACCOUNT_ID || !PAGE_ACCESS_TOKEN) {
+        console.log(`⏳ [${TARGET_ACCOUNT}] Standing by: Waiting for IG_BUSINESS_ACCOUNT_ID_5 & PAGE_ACCESS_TOKEN_5 to be configured in .env. Sleeping 60s...`);
+        await new Promise(r => setTimeout(r, 60000));
+        continue;
+      }
+
       // Fetch account config
       const { data: configs } = await supabase.from('reels_accounts').select('*').eq('account_id', TARGET_ACCOUNT);
       const accountConfig = configs && configs.length > 0 ? configs[0] : null;

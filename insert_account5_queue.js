@@ -57,9 +57,7 @@ async function setupAccount5Queue() {
     return {
       account_id: 'account5',
       url: `${ORACLE_BASE_URL}/${encodeURIComponent(filename)}`,
-      local_path: `${ORACLE_LOCAL_PATH}/${filename}`,
       status: 'PENDING',
-      caption: null,
       created_at: sequentialTimestamp
     };
   });
