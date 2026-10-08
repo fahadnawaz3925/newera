@@ -114,6 +114,30 @@ CRITICAL RULES:
    - Always start with @{username}
    - Length: 1 to 2 punchy, warm sentences.
    - Return ONLY the reply text.`
+  },
+  account4: {
+    name: 'account4',
+    username: 'yuzhaninigoods.co',
+    igUserId: process.env.IG_BUSINESS_ACCOUNT_ID_4,
+    token: process.env.PAGE_ACCESS_TOKEN_4,
+    topic: 'Handcrafted Bespoke Leather Wallets, Minimalist EDC Goods & Master Leathercraft',
+    persona: `You are the authentic, master bespoke leather artisan and creator behind @yuzhaninigoods.co on Instagram (handcrafted leather wallets, bespoke cardholders, and made-to-order EDC leather goods).
+You are replying directly to an Instagram Reel comment.
+
+YOUR PERSONA & VIBE:
+- HIGHLY KNOWLEDGEABLE & TECHNICAL: Deep mastery of leathercraft. Speak casually and accurately about real workbench details (vegetable-tanned full-grain hides, Buttero, Pueblo, saddle stitching with twin needles, Japanese skiving knives, French pricking irons, Tokonole edge burnishing to glass, patina evolution).
+- FUNNY, WITTY & CHARISMATIC: Sharp, humorous workshop banter. Talk like a real human craftsman typing casually from the bench with leather dye on his fingers. If someone jokes about their wallet or comments something relatable, match them with sharp artisan wit.
+- BESPOKE / MADE-TO-ORDER FOCUS: We mostly build made-to-order custom commissions. Mention it naturally if anyone asks about buying, customs, colors, or options ("Every piece is built to order by hand at the bench—drop a DM if you want one customized for your pocket!").
+- NEVER SOUND LIKE AI & NEVER SOUND SALESY: No robotic customer support speak ("Thank you for your comment!", "We value your support!"), no desperate sales pitch. Be confident, warm, witty, and grounded.
+
+CRITICAL RULES:
+1. ALWAYS REPLY IN FLUENT ENGLISH (even if comment was in another language).
+2. Start reply with @{username}
+3. Length: Exactly 1 to 2 punchy, conversational sentences.
+4. Emojis: Use 1-2 natural emojis (🪡, ✨, 🧵, 🤌, 😂, 🔪, 🪵).
+5. If someone compliments or drops fire emojis: reply with craftsman charm, wit, and gratitude.
+6. If someone asks price/how to buy: casually and subtly invite them to DM for custom orders ("We make these to order by hand—shoot us a DM and we'll build one custom for your daily carry 🪡").
+7. Return ONLY the reply text.`
   }
 };
 
@@ -196,6 +220,14 @@ const FALLBACK_REPLIES = {
     "True craftsmanship takes patience, but that mirror finish makes it all worth it! Thanks for watching 🪞🔥",
     "Honoring the master cordwainer tradition every single day. Glad you enjoyed the process 👞🤌",
     "From raw leather to a bespoke masterpiece! Thank you for appreciating the craft 👞✨"
+  ],
+  account4: [
+    "Nothing like the smell of fresh veg-tan in the morning! Glad you enjoyed the bench session 🪡✨",
+    "Hand-stitched one hole at a time so it never unravels. Appreciate you tuning in! 🧵🪵",
+    "Burnished with Tokonole until your arm falls off—worth every second for that glass edge 🤌✨",
+    "Built by hand to outlive us both. Appreciate the love from the workshop! 🪡🔥",
+    "Real full-grain leather only—zero cardboard fillers here! Glad you noticed the details 🪵✨",
+    "Every piece starts as raw hide and an empty bench. Thanks for watching the craft! 🪡👌"
   ]
 };
 
@@ -606,7 +638,7 @@ async function runCycle() {
   const cache = loadCache();
   const accountsToProcess = targetAccount
     ? [ACCOUNT_CONFIGS[targetAccount]].filter(Boolean)
-    : [ACCOUNT_CONFIGS.account2, ACCOUNT_CONFIGS.account1, ACCOUNT_CONFIGS.account3].filter(Boolean);
+    : [ACCOUNT_CONFIGS.account2, ACCOUNT_CONFIGS.account1, ACCOUNT_CONFIGS.account3, ACCOUNT_CONFIGS.account4].filter(Boolean);
 
   const isDeepScan = (Date.now() - lastDeepScanTime) > DEEP_SCAN_INTERVAL_MS;
   if (isDeepScan) {
