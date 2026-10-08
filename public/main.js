@@ -196,7 +196,12 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ accountId })
       });
       if (!res.ok) throw new Error('Failed to reset queue');
-      const accountNames = { account1: 'Account 1 (@pelleelegantee)', account2: 'Account 2 (@buffedboujee)', account3: 'Account 3 (@thehouseofcobblers)' };
+      const accountNames = {
+        account1: 'Account 1 (@pelleelegantee)',
+        account2: 'Account 2 (@buffedboujee)',
+        account3: 'Account 3 (@thehouseofcobblers)',
+        account4: 'Account 4 (@yuzhaninigoods.co)'
+      };
       alert(`Queue for ${accountNames[accountId] || accountId} successfully reset!`);
       await fetchQueue();
     } catch (err) {
@@ -589,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${logHtml}
             <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px; display: flex; align-items: center; gap: 6px;">
               <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">
-                ${item.account_id === 'account3' ? 'Account 3 (@thehouseofcobblers)' : (item.account_id === 'account2' ? 'Account 2 (@buffedboujee)' : 'Account 1 (@pelleelegantee)')}
+                ${({ account1: 'Account 1 (@pelleelegantee)', account2: 'Account 2 (@buffedboujee)', account3: 'Account 3 (@thehouseofcobblers)', account4: 'Account 4 (@yuzhaninigoods.co)' })[item.account_id] || item.account_id}
               </span>
               Queued: ${new Date(item.created_at).toLocaleString()}
             </div>
@@ -613,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${logHtml}
             <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px; display: flex; align-items: center; gap: 6px;">
               <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">
-                ${item.account_id === 'account3' ? 'Account 3 (@thehouseofcobblers)' : (item.account_id === 'account2' ? 'Account 2 (@buffedboujee)' : 'Account 1 (@pelleelegantee)')}
+                ${({ account1: 'Account 1 (@pelleelegantee)', account2: 'Account 2 (@buffedboujee)', account3: 'Account 3 (@thehouseofcobblers)', account4: 'Account 4 (@yuzhaninigoods.co)' })[item.account_id] || item.account_id}
               </span>
               Queued: ${new Date(item.created_at).toLocaleString()}
             </div>
