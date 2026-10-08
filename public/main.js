@@ -200,7 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
         account1: 'Account 1 (@pelleelegantee)',
         account2: 'Account 2 (@buffedboujee)',
         account3: 'Account 3 (@thehouseofcobblers)',
-        account4: 'Account 4 (@yuzhaninigoods.co)'
+        account4: 'Account 4 (@yuzhaninigoods.co)',
+        account5: 'Account 5 - Chrysolit.co (@jewel_hrizolit)'
       };
       alert(`Queue for ${accountNames[accountId] || accountId} successfully reset!`);
       await fetchQueue();

@@ -31,11 +31,18 @@ const handler = async (event, context) => {
       // Fetch queue
       const accountId = event.queryStringParameters?.accountId || 'account1';
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('reels_queue')
         .select('*')
-        .eq('account_id', accountId)
-        .order('created_at', { ascending: false });
+        .eq('account_id', accountId);
+
+      if (accountId === 'account4' || accountId === 'account5') {
+        query = query.order('created_at', { ascending: true });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 

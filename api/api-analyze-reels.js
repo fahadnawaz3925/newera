@@ -26,6 +26,15 @@ const handler = async (event, context) => {
       if (accountId === 'account2') {
         IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_2 || '17841437943644004';
         PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_2 || 'EAATskyTkvQUBSPx63pc2l50ADuLfubOt2qve4xQZCTvtGd6jBwsnGyIozjMmeTh8aNSZC82VMfEVkZCDLeHTOZBg6buaBLsXglk8dI0CiFV3ZChF1VWsmWZAELZADUUh5nAopRQFvvhMTSXTnZCcKR4NdzV9FtZCB4qYQUKOWrDZABEcllZB5gzotc9LYrCRFNpSYxx';
+      } else if (accountId === 'account3') {
+        IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_3;
+        PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_3;
+      } else if (accountId === 'account4') {
+        IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_4 || '17841415843312030';
+        PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_4;
+      } else if (accountId === 'account5') {
+        IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_5;
+        PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_5;
       } else {
         IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_1 || '17841443749365419';
         PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_1 || 'EAAekzJlZBCl0BSFAManvr9VZAebr1gKCPwNbKp6LGz7EZBtfccfjqmyU84jWZB58H5EghAnCLUGv1q26BfPJ8jWMZAXOqCeqDUysR59LHICk44t0Yhqs0E2lfXeojxi3KZAuLb3jAxSqBtOXzoKa09CX48cbbQolDQtimIvmktZBgU0ylFuknJZCIZCYr0k1M1BU0';
