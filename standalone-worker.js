@@ -57,7 +57,7 @@ function getNextProxy() {
 // ═══════════════════════════════════════════════════════════════
 const GLOBAL_LOCK_KEY = 'global_publisher_lock.json';
 const GLOBAL_LOCK_TIMEOUT_MS = 30 * 60 * 1000; // 30 min max lock duration before auto-recovery
-const GLOBAL_MIN_STAGGER_MINS = 7.0; // Min 7 min interval between ANY post across accounts
+const GLOBAL_MIN_STAGGER_MINS = 2.0; // 2 min minimum spacing between different account posts
 
 // In-memory cache for next scheduled post time per account and active job tracking
 const scheduledNextPost = {};
