@@ -38,9 +38,17 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const TARGET_ACCOUNT = 'account5';
 const DEFAULT_HANDLE = '@jewel_hrizolit';
 const BRAND_NAME = 'Chrysolit.co';
+function getMetaCredentials() {
+  try {
+    const envConfig = require('dotenv').config().parsed || {};
+    Object.assign(process.env, envConfig);
+  } catch (e) {}
 
-const IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID_5 || process.env.IG_BUSINESS_ACCOUNT_ID;
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN_5 || process.env.PAGE_ACCESS_TOKEN;
+  return {
+    IG_BUSINESS_ACCOUNT_ID: process.env.IG_BUSINESS_ACCOUNT_ID_5 || process.env.IG_BUSINESS_ACCOUNT_ID,
+    PAGE_ACCESS_TOKEN: process.env.PAGE_ACCESS_TOKEN_5 || process.env.PAGE_ACCESS_TOKEN
+  };
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -440,6 +448,7 @@ async function publishReelToInstagram(publicVideoUrl, caption, thumbOffsetSecond
   console.log(`\n📤 Publishing Reel to Instagram (@jewel_hrizolit)...`);
   const thumbOffsetMs = Math.floor(parseFloat(thumbOffsetSeconds || 2) * 1000);
 
+  const { IG_BUSINESS_ACCOUNT_ID, PAGE_ACCESS_TOKEN } = getMetaCredentials();
   if (!IG_BUSINESS_ACCOUNT_ID || !PAGE_ACCESS_TOKEN) {
     throw new Error('Meta Instagram credentials (IG_BUSINESS_ACCOUNT_ID_5 / PAGE_ACCESS_TOKEN_5) not configured');
   }
@@ -572,6 +581,8 @@ Video Context: "${(videoCaption || '').slice(0, 200)}"`;
 
 async function postArtisanFirstCommentAcc5(mediaId, caption = '') {
   try {
+    const { PAGE_ACCESS_TOKEN } = getMetaCredentials();
+    if (!PAGE_ACCESS_TOKEN) return null;
     console.log(`💬 [@jewel_hrizolit] Generating witty made-to-order DM first comment for Reel ${mediaId}...`);
     const commentText = await generateWittyCommentAcc5(caption);
     console.log(`💬 Comment text:\n"${commentText}"`);
@@ -696,6 +707,7 @@ async function mainLoop() {
 
   while (true) {
     try {
+      const { IG_BUSINESS_ACCOUNT_ID, PAGE_ACCESS_TOKEN } = getMetaCredentials();
       if (!IG_BUSINESS_ACCOUNT_ID || !PAGE_ACCESS_TOKEN) {
         console.log(`⏳ [${TARGET_ACCOUNT}] Standing by: Waiting for IG_BUSINESS_ACCOUNT_ID_5 & PAGE_ACCESS_TOKEN_5 to be configured in .env. Sleeping 60s...`);
         await new Promise(r => setTimeout(r, 60000));
