@@ -84,9 +84,9 @@ if (accountIdR2 && accessKeyId && secretAccessKey) {
 const LOCAL_VIDEOS_DIR = process.env.LOCAL_VIDEOS_DIR_5 || '/home/ubuntu/JEWEL_HRIZOLIT_PROCESSED';
 const ALT_LOCAL_DIR = '/home/ubuntu/JEWEL_HRIZOLIT PROCESSED';
 
-// Posting interval (default: 20-30 minutes)
-const MIN_POST_INTERVAL_MS = 20 * 60 * 1000;
-const MAX_POST_INTERVAL_MS = 30 * 60 * 1000;
+// Posting interval (default: 40-45 minutes)
+const MIN_POST_INTERVAL_MS = 40 * 60 * 1000;
+const MAX_POST_INTERVAL_MS = 45 * 60 * 1000;
 
 // Resolve FFmpeg / FFprobe
 function resolveBinary(name) {
@@ -150,15 +150,15 @@ function generateAntiCopyrightParams(config) {
   const trimStart = randFloat(0.1, 0.25);
   const trimEnd = randFloat(0.1, 0.25);
 
-  // Layer 4: Encoding
+  // Layer 4: Highest Quality Encoding Settings (Studio-grade 1080p mobile clarity)
   const frameRate = 30;
-  const preset = 'superfast';
+  const preset = 'fast';
   const profile = 'high';
-  const level = '4.1';
+  const level = '4.2';
   const gopSize = randInt(30, 60);
-  const videoBitrate = randInt(3200, 3800) + 'k';
-  const maxRate = randInt(4000, 4600) + 'k';
-  const audioBitrate = '256k';
+  const videoBitrate = randInt(5500, 6800) + 'k';
+  const maxRate = randInt(7200, 8500) + 'k';
+  const audioBitrate = '320k';
 
   // Layer 5: Device metadata
   const device = randPick(DEVICE_PROFILES);
@@ -336,12 +336,13 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
   const trimEndTime = Math.max(1, duration - params.trimEnd).toFixed(3);
   const effectiveDuration = parseFloat(trimEndTime) - params.trimStart;
 
-  // Build Video Filter
+  // Build Video Filter: High-definition Lanczos upscaling with subtle unsharp edge clarity
   const vf = [
     `crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`,
-    `scale=1080:1920:force_original_aspect_ratio=increase:flags=bilinear`,
+    `scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos`,
     `crop=1080:1920`,
-    `setsar=1`
+    `setsar=1`,
+    `unsharp=3:3:0.5:3:3:0.0`
   ];
   // STRICTLY NO HFLIP: Preserves authentic gem setting, microscope view, and hands!
   vf.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
@@ -391,10 +392,13 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
     '-preset', params.preset,
     '-profile:v', params.profile,
     '-level', params.level,
+    '-color_primaries', 'bt709',
+    '-color_trc', 'bt709',
+    '-colorspace', 'bt709',
     '-threads', '2',
     '-b:v', params.videoBitrate,
     '-maxrate', params.maxRate,
-    '-bufsize', '8M',
+    '-bufsize', '12M',
     '-g', String(params.gopSize),
     '-c:a', 'aac',
     '-b:a', params.audioBitrate,
@@ -638,7 +642,7 @@ async function processSingleItem(item, accountConfig) {
       fs.copyFileSync(directLocalCandidate2, rawPath);
     } else if (item.url && item.url.startsWith('http')) {
       console.log(`🌐 Downloading video from URL: ${item.url}`);
-      await execa('yt-dlp', ['-f', 'b[ext=mp4]/best', '-o', rawPath, '--no-playlist', item.url]);
+      await execa('yt-dlp', ['-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best', '-o', rawPath, '--no-playlist', item.url]);
     } else {
       throw new Error(`No valid video source found for item ${item.id}`);
     }
@@ -732,7 +736,7 @@ async function mainLoop() {
         console.log(`\n🎯 Claimed Item ${item.id} (${item.url || item.local_path})`);
         const ok = await processSingleItem(item, accountConfig);
         if (ok) {
-          const sleepMinutes = randInt(20, 30);
+          const sleepMinutes = randInt(40, 45);
           console.log(`⏱️ Next post scheduled in ${sleepMinutes} minutes. Sleeping...`);
           await new Promise(r => setTimeout(r, sleepMinutes * 60 * 1000));
           continue;

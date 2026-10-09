@@ -72,9 +72,9 @@ if (accountIdR2 && accessKeyId && secretAccessKey) {
 const LOCAL_VIDEOS_DIR = process.env.LOCAL_VIDEOS_DIR || path.join(__dirname, 'yuzhaninigoods_videos');
 if (!fs.existsSync(LOCAL_VIDEOS_DIR)) fs.mkdirSync(LOCAL_VIDEOS_DIR, { recursive: true });
 
-// Posting interval (default: 20-30 minutes)
-const MIN_POST_INTERVAL_MS = 20 * 60 * 1000;
-const MAX_POST_INTERVAL_MS = 30 * 60 * 1000;
+// Posting interval (default: 40-45 minutes)
+const MIN_POST_INTERVAL_MS = 40 * 60 * 1000;
+const MAX_POST_INTERVAL_MS = 45 * 60 * 1000;
 
 // Resolve FFmpeg / FFprobe
 function resolveBinary(name) {
@@ -138,15 +138,15 @@ function generateAntiCopyrightParams(config) {
   const trimStart = randFloat(0.1, 0.25);
   const trimEnd = randFloat(0.1, 0.25);
 
-  // Layer 4: Encoding
+  // Layer 4: Highest Quality Encoding Settings (Studio-grade 1080p mobile clarity)
   const frameRate = 30;
-  const preset = 'superfast';
+  const preset = 'fast';
   const profile = 'high';
-  const level = '4.1';
+  const level = '4.2';
   const gopSize = randInt(30, 60);
-  const videoBitrate = randInt(3200, 3800) + 'k';
-  const maxRate = randInt(4000, 4600) + 'k';
-  const audioBitrate = '256k';
+  const videoBitrate = randInt(5500, 6800) + 'k';
+  const maxRate = randInt(7200, 8500) + 'k';
+  const audioBitrate = '320k';
 
   // Layer 5: Device metadata
   const device = randPick(DEVICE_PROFILES);
@@ -300,12 +300,13 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
   const trimEndTime = Math.max(1, duration - params.trimEnd).toFixed(3);
   const effectiveDuration = parseFloat(trimEndTime) - params.trimStart;
 
-  // Build Video Filter
+  // Build Video Filter: High-definition Lanczos upscaling with subtle unsharp edge clarity
   const vf = [
     `crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`,
-    `scale=1080:1920:force_original_aspect_ratio=increase:flags=bilinear`,
+    `scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos`,
     `crop=1080:1920`,
-    `setsar=1`
+    `setsar=1`,
+    `unsharp=3:3:0.5:3:3:0.0`
   ];
   // Strictly NO hflip for Account 4 (leathercraft text, logos, maker stamps & hand orientation preserved)
   vf.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
@@ -354,10 +355,13 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
     '-preset', params.preset,
     '-profile:v', params.profile,
     '-level', params.level,
+    '-color_primaries', 'bt709',
+    '-color_trc', 'bt709',
+    '-colorspace', 'bt709',
     '-threads', '2',
     '-b:v', params.videoBitrate,
     '-maxrate', params.maxRate,
-    '-bufsize', '8M',
+    '-bufsize', '12M',
     '-g', String(params.gopSize),
     '-c:a', 'aac',
     '-b:a', params.audioBitrate,
@@ -481,6 +485,96 @@ async function publishReelToInstagram(publicVideoUrl, caption, thumbOffsetSecond
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════
+// 💬 WITTY ARTISAN FIRST COMMENT & PIN (ACCOUNT 4 - @yuzhaninigoods.co)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+const ACCOUNT4_FALLBACK_COMMENTS = [
+  "📌 My coffee went cold three hours ago, but this saddle stitch is mathematically flawless ☕🪡 In all honesty, 90% of what leaves this bench is custom made to order. If you want a wallet built specifically for your pocket and leather taste, drop us a DM and let's craft it ⚒️",
+  "📌 Warning: Carrying full-grain veg-tan leather will permanently ruin cheap department store wallets for you 🤷‍♂️ We build every piece one-by-one to order. Got a custom layout or leather colorway in mind? Slide into our DMs and let's build yours 📩",
+  "📌 The saddest sight in menswear is a $500 suit paired with a peeling faux-leather wallet from 2017 😂 We do custom made-to-order leather commissions. Drop us a DM with what you carry daily and let's build your bespoke piece 🪡✨",
+  "📌 Don't ask how many hours went into edge beveling today... my fingers have forgotten what a 9-to-5 feels like ⚒️ Almost everything leaving our bench is custom made to order. DM us your pocket carry setup and let's tailor one for you 📩",
+  "📌 Yes, it smells like pure full-grain heaven in here, and no, I'm not sharing the leather scraps 😂 Every piece is crafted by hand to order. Drop a DM to commission your bespoke wallet or cardholder!",
+  "📌 If a wallet doesn't age with a rich golden patina, it doesn't belong in your pocket. We make custom leather goods to order right here on the bench. Slide into our DMs to pick your leather, thread, and build 🪡",
+  "📌 Your cards deserve better than glued bonded cardboard masquerading as leather 🧐 We handcraft every wallet to order using traditional saddle stitching. DM us for custom commissions and pocket setups!",
+  "📌 There's something dangerously addictive about the click of a brass snap and the smell of fresh tallow leather. Most of our bench slots are made-to-order commissions — drop a DM to claim your custom build ⚒️",
+  "📌 My hands are 80% beeswax and edge burnisher at this point 🪡 Every piece is built by hand to order to outlive fast-fashion junk. Send us a DM with your idea and let's craft your daily carry!",
+  "📌 Built to be handed down, not replaced next Black Friday 🛡️ We specialize in bespoke made-to-order leather carry. Drop a DM to pick your leather, stitch color, and custom pocket configuration!",
+  "📌 If you ever catch me using a sewing machine, check for a clone 🪡 Twin needles, hand-pulled tension, and made-to-order builds only. DM us to commission your custom pocket piece!",
+  "📌 Real leather doesn't peel, crack, or fake it. Every wallet is cut and saddle-stitched by hand to order. Drop a DM if you're ready to upgrade what lives in your pocket 📩"
+];
+
+let commentIndexAcc4 = 0;
+
+async function generateWittyCommentAcc4(videoCaption = '') {
+  const apiKeys = [
+    process.env.GEMINI_API_KEY_1,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY
+  ].filter(Boolean);
+
+  const prompt = `You are the witty, master leather artisan behind @yuzhaninigoods.co (bespoke handcrafted leather wallets, cardholders, and luxury leather goods).
+Write a single, funny/witty first comment for our new reel.
+Guidelines:
+- Start with '📌 ' (pin emoji) followed by a punchy, humorous artisan truth or bench observation (e.g. cold coffee, edge beveling for hours, roasting cheap plastic wallets, sniffing veg-tan leather, saddle stitch obsession).
+- Highlight naturally that 90%+ of what leaves our bench is custom MADE-TO-ORDER by hand.
+- End with a smooth, witty call to action telling viewers to drop a DM / slide into our DMs to commission their custom wallet, choose their leather/thread, or get a bespoke build for their pocket.
+- STRICT: NO robotic AI talk. NO hashtags. Keep it under 240 characters. Sound like a real, passionate, witty craftsman.
+
+Video Context: "${(videoCaption || '').slice(0, 200)}"`;
+
+  for (const key of apiKeys) {
+    for (const mName of ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest']) {
+      try {
+        const genAI = new GoogleGenerativeAI(key);
+        const model = genAI.getGenerativeModel({ model: mName });
+        const res = await Promise.race([
+          model.generateContent(prompt),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+        ]);
+        const text = res.response?.text()?.trim();
+        if (text && text.length > 25 && !text.includes('```')) {
+          let clean = text.replace(/^["']|["']$/g, '').trim();
+          if (!clean.startsWith('📌')) clean = '📌 ' + clean;
+          return clean;
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Fallback from curated pool
+  const chosen = ACCOUNT4_FALLBACK_COMMENTS[commentIndexAcc4 % ACCOUNT4_FALLBACK_COMMENTS.length];
+  commentIndexAcc4++;
+  return chosen;
+}
+
+async function postArtisanFirstCommentAcc4(mediaId, caption = '') {
+  try {
+    console.log(`💬 [@yuzhaninigoods.co] Generating witty made-to-order DM first comment for Reel ${mediaId}...`);
+    const commentText = await generateWittyCommentAcc4(caption);
+    console.log(`💬 Comment text:\n"${commentText}"`);
+
+    const commentRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}/comments?${new URLSearchParams({ message: commentText, access_token: PAGE_ACCESS_TOKEN }).toString()}`, {
+      method: 'POST'
+    });
+    const commentData = await commentRes.json();
+
+    if (commentData.id) {
+      console.log(`📌 [yuzhaninigoods.co] Top anchor comment successfully posted! Comment ID: ${commentData.id}`);
+      // Attempt pin if Meta endpoint supports it
+      try {
+        await fetch(`https://graph.facebook.com/v19.0/${commentData.id}?pinned=true&access_token=${PAGE_ACCESS_TOKEN}`, { method: 'POST' });
+      } catch (pinErr) {}
+      return commentData.id;
+    } else {
+      console.warn(`⚠️ [yuzhaninigoods.co] Comment API response:`, commentData);
+    }
+  } catch (err) {
+    console.error(`❌ [yuzhaninigoods.co] Error posting artisan first comment:`, err.message);
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
 // 🔄 QUEUE PROCESSOR & MAIN DAEMON LOOP
 // ═══════════════════════════════════════════════════════════════════════════════════
 
@@ -507,7 +601,7 @@ async function processSingleItem(item, accountConfig) {
       fs.copyFileSync(directLocalCandidate, rawPath);
     } else if (item.url && item.url.startsWith('http')) {
       console.log(`🌐 Downloading video from URL: ${item.url}`);
-      await execa('yt-dlp', ['-f', 'b[ext=mp4]/best', '-o', rawPath, '--no-playlist', item.url]);
+      await execa('yt-dlp', ['-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best', '-o', rawPath, '--no-playlist', item.url]);
     } else {
       throw new Error(`No valid video source found for item ${item.id}`);
     }
@@ -539,6 +633,11 @@ async function processSingleItem(item, accountConfig) {
 
     // 6. Publish to Instagram
     const { publishedMediaId, permalink } = await publishReelToInstagram(publicVideoUrl, caption, randomTimeStr);
+
+    // 6.5. Post Witty Made-to-Order Artisan Anchor First Comment
+    if (publishedMediaId) {
+      await postArtisanFirstCommentAcc4(publishedMediaId, caption);
+    }
 
     // 7. Update Supabase
     await supabase.from('reels_queue').update({
@@ -574,13 +673,13 @@ async function mainLoop() {
       const { data: configs } = await supabase.from('reels_accounts').select('*').eq('account_id', TARGET_ACCOUNT);
       const accountConfig = configs && configs.length > 0 ? configs[0] : null;
 
-      // Check next PENDING item in Supabase
+      // Check next PENDING item in Supabase (STRICT DESCENDING ORDER: 1100 -> 0001)
       const { data: items, error } = await supabase
         .from('reels_queue')
         .select('*')
         .eq('account_id', TARGET_ACCOUNT)
         .eq('status', 'PENDING')
-        .order('created_at', { ascending: true })
+        .order('url', { ascending: false })
         .limit(1);
 
       if (!error && items && items.length > 0) {
@@ -588,7 +687,7 @@ async function mainLoop() {
         console.log(`\n🎯 Claimed Item ${item.id} (${item.url || item.local_path})`);
         const ok = await processSingleItem(item, accountConfig);
         if (ok) {
-          const sleepMinutes = randInt(20, 30);
+          const sleepMinutes = randInt(40, 45);
           console.log(`⏱️ Next post scheduled in ${sleepMinutes} minutes. Sleeping...`);
           await new Promise(r => setTimeout(r, sleepMinutes * 60 * 1000));
           continue;

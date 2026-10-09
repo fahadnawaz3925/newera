@@ -496,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const cycleMs = (nextScheduled && nextScheduled > lastPublished) 
       ? (nextScheduled - lastPublished) 
-      : (22.5 * 60 * 1000); // 20-25 mins average fallback
+      : (42.5 * 60 * 1000); // 40-45 mins average fallback
     
     const targetTime = (nextScheduled && nextScheduled > lastPublished) 
       ? nextScheduled 

@@ -297,18 +297,18 @@ function generateAntiCopyrightParams(targetAccount, config) {
 
   const ptsFactor = 1 / audioSpeedFactor;
 
-  // Optimized Video & Audio Encoding Parameters for Cloud VM & Fast Meta Reels Ingestion
-  const preset = 'superfast';                  // Ultra-fast x264 encoding (~30-45s render)
+  // Highest Quality Video & Audio Encoding Parameters for Cloud VM & Meta Reels Ingestion
+  const preset = 'fast';                       // High-fidelity x264 encoding with deep motion vectors
   const profile = 'high';                      // H.264 High Profile (best mobile compression/sharpness)
-  const tune = null;                          // Removed 'film' tune to prevent 4x CPU slowdown and massive files
-  const level = '4.1';                         // Instagram standard H.264 level 4.1
+  const tune = null;                          
+  const level = '4.2';                         // Instagram standard H.264 level 4.2
 
   const gopSize = randInt(30, 60); 
 
-  // Bitrates tailored so 60-140s videos stay within 15-28MB (avoids Meta crawler timeouts & error 2207076)
-  const videoBitrate = randInt(3200, 3800) + 'k';
-  const maxRate = randInt(4000, 4600) + 'k';
-  const audioBitrate = '256k';                    // Crystal clear studio audio (256 kbps AAC)
+  // Studio-grade high bitrate for crisp 1080p mobile playback
+  const videoBitrate = randInt(5500, 6800) + 'k';
+  const maxRate = randInt(7200, 8500) + 'k';
+  const audioBitrate = '320k';                    // Crystal clear studio audio (320 kbps AAC)
 
   const noiseStrength = randInt(1, 2);           // Ultra-low imperceptible noise
 
@@ -601,6 +601,94 @@ Start directly with the hook line.`;
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════════
+// 💬 WITTY ARTISAN FIRST COMMENT & PIN (ACCOUNT 3 - @thehouseofcobblers)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+const ACCOUNT3_FALLBACK_COMMENTS = [
+  "📌 My doctor said I need more iron in my diet, so I bought more cobbler nails 🔨👞 In all seriousness, we craft bespoke shoes by hand to order and restore holy grail pairs. Drop us a DM with your size or your worn-out favorites to get on the bench 📩",
+  "📌 Life is too short to walk around on cheap foam soles that dissolve when it drizzles ☔👞 Goodyear welted, stitched by hand, and built to order. Slide into our DMs to commission a bespoke pair or book a restoration!",
+  "📌 If you can't hear the crisp crunch of leather sole trimming in your sleep, are you even cobbling? 🤷‍♂️ We do custom made-to-order footwear commissions and bench restorations. Drop us a DM and let's talk lasts and leathers ✨",
+  "📌 Resoling shoes older than my apprentice today 👴👞 Every pair leaving this bench is built to outlive us both. If you want a bespoke pair crafted for your feet or custom patina, shoot us a DM!",
+  "📌 A mirror shine so crisp you could check your teeth before an interview 🪞👞 We build bespoke Goodyear welted shoes to order. Drop a DM with your size and dream style, and let's build them from the leather up!",
+  "📌 The smell of hot pitch, oak bark tanned leather, and fresh wax in the morning beats coffee any day ☕👞 We take bespoke commissions and custom rebuilds. Slide into our DMs to get your pair handcrafted!",
+  "📌 Glued soles are temporary, a Goodyear welt is forever ⚒️👞 Handcrafted to order for gentlemen who value real cordwainer craft. DM us to commission your custom pair or restore your vintage favorites!",
+  "📌 Yes, every single stitch through that welt was pulled by hand until my forearms cramped 😂 We craft bespoke pairs made to order. Drop us a DM to discuss leather, sizing, and your custom build 📩",
+  "📌 Treat your feet with some respect — you spend half your life in your shoes 👞 Handcrafted to order from raw calfskin to mirror shine. Send us a DM to commission your bespoke pair today!",
+  "📌 Stitched tight enough to survive an apocalypse, finished clean enough for the boardroom 💼👞 We craft custom made-to-order footwear. Drop a DM to get your bespoke commission started on the bench!",
+  "📌 Nothing hurts my soul quite like seeing a great pair of dress shoes thrown into the dumpster instead of resoled 🥺 Send us a DM with photos of your footwear to book a bench restoration!",
+  "📌 Built by hand, lasted with patience, and finished for a lifetime 👞 Drop a DM to commission your custom bespoke pair or get your holy grail footwear restored at the bench ✨"
+];
+
+let commentIndexAcc3 = 0;
+
+async function generateWittyCommentAcc3(videoCaption = '') {
+  const apiKeys = [
+    process.env.GEMINI_API_KEY_1,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY
+  ].filter(Boolean);
+
+  const prompt = `You are the witty, master cordwainer/cobbler behind @thehouseofcobblers (luxury handmade Goodyear welted shoes & shoe restorations).
+Write a single, funny, witty first comment for our new reel.
+Guidelines:
+- Start with '📌 ' (pin emoji) followed by cobbler bench banter (smell of leather and wax, resoling shoes older than apprentice, nails for breakfast, roasting glued sneaker soles).
+- Naturally mention bespoke made-to-order shoe commissions and bench restorations.
+- Subtle witty CTA: drop a DM to commission a custom pair or book a restoration.
+- Under 240 chars, NO hashtags, sound authentic and human.
+
+Video Context: "${(videoCaption || '').slice(0, 200)}"`;
+
+  for (const key of apiKeys) {
+    for (const mName of ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest']) {
+      try {
+        const genAI = new GoogleGenerativeAI(key);
+        const model = genAI.getGenerativeModel({ model: mName });
+        const res = await Promise.race([
+          model.generateContent(prompt),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+        ]);
+        const text = res.response?.text()?.trim();
+        if (text && text.length > 25 && !text.includes('```')) {
+          let clean = text.replace(/^["']|["']$/g, '').trim();
+          if (!clean.startsWith('📌')) clean = '📌 ' + clean;
+          return clean;
+        }
+      } catch (e) {}
+    }
+  }
+
+  const chosen = ACCOUNT3_FALLBACK_COMMENTS[commentIndexAcc3 % ACCOUNT3_FALLBACK_COMMENTS.length];
+  commentIndexAcc3++;
+  return chosen;
+}
+
+async function postArtisanFirstCommentAcc3(mediaId, caption = '', token) {
+  try {
+    console.log(`💬 [@thehouseofcobblers] Generating witty made-to-order DM first comment for Reel ${mediaId}...`);
+    const commentText = await generateWittyCommentAcc3(caption);
+    console.log(`💬 Comment text:\n"${commentText}"`);
+
+    const commentRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}/comments?${new URLSearchParams({ message: commentText, access_token: token }).toString()}`, {
+      method: 'POST'
+    });
+    const commentData = await commentRes.json();
+
+    if (commentData.id) {
+      console.log(`📌 [thehouseofcobblers] Top anchor comment successfully posted! Comment ID: ${commentData.id}`);
+      try {
+        await fetch(`https://graph.facebook.com/v19.0/${commentData.id}?pinned=true&access_token=${token}`, { method: 'POST' });
+      } catch (pinErr) {}
+      return commentData.id;
+    } else {
+      console.warn(`⚠️ [thehouseofcobblers] Comment API response:`, commentData);
+    }
+  } catch (err) {
+    console.error(`❌ [thehouseofcobblers] Error posting artisan first comment:`, err.message);
+  }
+  return null;
+}
+
 // Single Video Processor
 async function processSingleItem(item, targetAccount) {
   // Fetch dynamic configuration from DB
@@ -805,10 +893,11 @@ async function processSingleItem(item, targetAccount) {
     // Layer 1: Visual Obfuscation
     // Crop subtle 1-3% to hide edge artifacts/watermarks
     vfParts.push(`crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`);
-    // Scale and crop to fill the full 1080x1920 9:16 vertical Reel frame with ZERO black letterbox bars (bilinear for maximum performance & sharpness)
-    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=increase:flags=bilinear`);
+    // Scale and crop to fill the full 1080x1920 9:16 vertical Reel frame with Lanczos sinc filtering & unsharp edge clarity
+    vfParts.push(`scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos`);
     vfParts.push('crop=1080:1920');
     vfParts.push('setsar=1');
+    vfParts.push('unsharp=3:3:0.5:3:3:0.0');
 
     // Layer 1: Random horizontal mirror (50% chance)
     if (params.doMirror) vfParts.push('hflip');
@@ -939,7 +1028,7 @@ async function processSingleItem(item, targetAccount) {
       '-threads', '2',
       '-b:v', params.videoBitrate,
       '-maxrate', params.maxRate,
-      '-bufsize', '8M',
+      '-bufsize', '12M',
       '-g', String(params.gopSize),
       '-c:a', 'aac',
       '-b:a', params.audioBitrate,
@@ -1088,6 +1177,12 @@ async function processSingleItem(item, targetAccount) {
     }
 
     console.log(`✅ Reel published successfully for ${targetAccount}! 🎉`);
+    const publishedMediaId = publishData.id;
+
+    // 💬 Auto-post & anchor pin witty made-to-order DM first comment for Account 3 (@thehouseofcobblers)
+    if (targetAccount === 'account3' && publishedMediaId) {
+      await postArtisanFirstCommentAcc3(publishedMediaId, caption, PAGE_ACCESS_TOKEN);
+    }
 
     // Mark PUBLISHED immediately in Supabase
     await supabase.from('reels_queue').update({ status: 'PUBLISHED', error_log: null }).eq('id', item.id);
@@ -1128,7 +1223,7 @@ async function processSingleItem(item, targetAccount) {
     }
 
     const now = Date.now();
-    const nextIntervalMins = randFloat(20, 25);
+    const nextIntervalMins = randFloat(40, 45);
     const nextPostTime = now + Math.round(nextIntervalMins * 60 * 1000);
     scheduledNextPost[targetAccount] = nextPostTime;
 
@@ -1227,7 +1322,7 @@ async function startDaemon() {
   setInterval(cleanupOldTempFiles, 60 * 60 * 1000);
   console.log(`\n======================================================`);
   console.log(`🚀 Standalone 24/7 Reel Auto-Poster Daemon Started`);
-  console.log(`⏱️ Schedule: Every 20-25 minutes per account independently`);
+  console.log(`⏱️ Schedule: Every 40-45 minutes per account independently`);
   console.log(`🔒 Global Mutex: STRICTLY 1 video rendering/publishing at a time`);
   console.log(`⏱️ Cross-Account Staggering: Min ${GLOBAL_MIN_STAGGER_MINS} minutes between ANY account posts`);
   console.log(`======================================================\n`);
@@ -1402,9 +1497,9 @@ async function startDaemon() {
           console.log(`[${targetAccount}] 🆕 No previous post found — ready to post!`);
           isReady = true;
         } else {
-          // If nextScheduled is missing or invalid, generate a 20-25 min target
+          // If nextScheduled is missing or invalid, generate a 40-45 min target
           if (!nextScheduled || isNaN(nextScheduled) || nextScheduled < lastPub) {
-            const intervalMins = randFloat(20, 25);
+            const intervalMins = randFloat(40, 45);
             nextScheduled = lastPub + Math.round(intervalMins * 60 * 1000);
             scheduledNextPost[targetAccount] = nextScheduled;
             await S3.send(new PutObjectCommand({
@@ -1417,7 +1512,7 @@ async function startDaemon() {
 
           if (now >= nextScheduled) {
             const minsSinceLastPost = ((now - lastPub) / 60000).toFixed(1);
-            console.log(`[${targetAccount}] ⏰ 20-25 min cooldown elapsed (${minsSinceLastPost} min since last post) — ready to post!`);
+            console.log(`[${targetAccount}] ⏰ 40-45 min cooldown elapsed (${minsSinceLastPost} min since last post) — ready to post!`);
             isReady = true;
           } else {
             const waitMinsLeft = ((nextScheduled - now) / 60000).toFixed(1);
@@ -1477,7 +1572,7 @@ async function startDaemon() {
           await supabase.from('reels_queue').update({ status: 'PROCESSING' }).eq('id', item.id);
 
           // 9. Immediately reserve schedule and global timestamp so no race condition can occur during FFmpeg render
-          const nextIntervalMins = randFloat(20, 25);
+          const nextIntervalMins = randFloat(40, 45);
           const nextPostTime = Date.now() + Math.round(nextIntervalMins * 60 * 1000);
           scheduledNextPost[targetAccount] = nextPostTime;
           await S3.send(new PutObjectCommand({ Bucket: bucketName, Key: `next_scheduled_${targetAccount}.txt`, Body: nextPostTime.toString(), ContentType: 'text/plain' })).catch(e => {});
