@@ -726,6 +726,26 @@ async function mainLoop() {
       const { data: configs } = await supabase.from('reels_accounts').select('*').eq('account_id', TARGET_ACCOUNT);
       const accountConfig = configs && configs.length > 0 ? configs[0] : null;
 
+      // Ensure 40-45 minute cadence between posts even across daemon restarts
+      const { data: lastPub } = await supabase
+        .from('reels_queue')
+        .select('updated_at')
+        .eq('account_id', TARGET_ACCOUNT)
+        .eq('status', 'PUBLISHED')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (lastPub && lastPub.length > 0 && lastPub[0].updated_at) {
+        const elapsedMs = Date.now() - new Date(lastPub[0].updated_at).getTime();
+        const minCadenceMs = 40 * 60 * 1000;
+        if (elapsedMs < minCadenceMs) {
+          const waitMs = minCadenceMs - elapsedMs;
+          const waitMins = Math.ceil(waitMs / 60000);
+          console.log(`⏱️ [${TARGET_ACCOUNT}] Last Reel was published ${Math.round(elapsedMs / 60000)}m ago. Maintaining 40-45m cadence: waiting ${waitMins}m...`);
+          await new Promise(r => setTimeout(r, waitMs));
+        }
+      }
+
       // Check next PENDING item in Supabase (STRICT DESCENDING ORDER: 540 -> 001)
       const { data: items, error } = await supabase
         .from('reels_queue')

@@ -283,7 +283,7 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
   console.log(`  L3 Temporal: TrimStart(${params.trimStart.toFixed(2)}s), TrimEnd(${params.trimEnd.toFixed(2)}s), PTS(${params.ptsFactor.toFixed(4)})`);
   console.log(`  L4 Encoding: Preset(${params.preset}), GOP(${params.gopSize}), VBitrate(${params.videoBitrate}), ABitrate(${params.audioBitrate})`);
   console.log(`  L5 Device: ${params.device.make} ${params.device.model} (${params.device.encoder})`);
-  console.log(`  L6 Watermark: ${params.watermarkText} @ ${Math.round(params.watermarkOpacity * 100)}% opacity`);
+  console.log(`  L6 Watermark (LEFT SIDE): ${params.watermarkText} @ ${Math.round(params.watermarkOpacity * 100)}% opacity (x=35, y=h-th-30)`);
   console.log(`  L9 Warp: Subtle rotation(${params.rotAngle}deg)`);
   console.log(`  L10 Stenographic Hash: 1% opacity invisible perceptual perturber`);
 
@@ -316,7 +316,8 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
   vf.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
   vf.push(`noise=alls=${params.noiseStrength}:allf=u`);
   vf.push(`setpts=PTS*${params.ptsFactor}`);
-  vf.push(`drawtext=text='${params.watermarkText}':fontsize=${params.watermarkSize}:fontcolor=white@${params.watermarkOpacity}:x=w-tw-25:y=h-th-30`);
+  // WATERMARK BRANDING ON LEFT SIDE: x=35, y=h-th-30 (matches Account 5)
+  vf.push(`drawtext=text='${params.watermarkText}':fontsize=${params.watermarkSize}:fontcolor=white@${params.watermarkOpacity}:x=35:y=h-th-30`);
 
   // L10: Invisible 1% hash overlay
   const invisibleHash = Math.random().toString(36).substring(2, 10);
@@ -676,6 +677,26 @@ async function mainLoop() {
       // Fetch account config
       const { data: configs } = await supabase.from('reels_accounts').select('*').eq('account_id', TARGET_ACCOUNT);
       const accountConfig = configs && configs.length > 0 ? configs[0] : null;
+
+      // Ensure 40-45 minute cadence between posts even across daemon restarts
+      const { data: lastPub } = await supabase
+        .from('reels_queue')
+        .select('updated_at')
+        .eq('account_id', TARGET_ACCOUNT)
+        .eq('status', 'PUBLISHED')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (lastPub && lastPub.length > 0 && lastPub[0].updated_at) {
+        const elapsedMs = Date.now() - new Date(lastPub[0].updated_at).getTime();
+        const minCadenceMs = 40 * 60 * 1000;
+        if (elapsedMs < minCadenceMs) {
+          const waitMs = minCadenceMs - elapsedMs;
+          const waitMins = Math.ceil(waitMs / 60000);
+          console.log(`⏱️ [${TARGET_ACCOUNT}] Last Reel was published ${Math.round(elapsedMs / 60000)}m ago. Maintaining 40-45m cadence: waiting ${waitMins}m...`);
+          await new Promise(r => setTimeout(r, waitMs));
+        }
+      }
 
       // Check next PENDING item in Supabase (STRICT DESCENDING ORDER: 1100 -> 0001)
       const { data: items, error } = await supabase
