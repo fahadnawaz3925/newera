@@ -650,6 +650,13 @@ async function processSingleItem(item, accountConfig) {
       error_log: null
     }).eq('id', item.id);
 
+    // Persist last published timestamp locally and in R2
+    const pubNow = Date.now().toString();
+    try { fs.writeFileSync(`/tmp/last_published_${TARGET_ACCOUNT}.txt`, pubNow, 'utf8'); } catch (e) {}
+    if (S3) {
+      await S3.send(new PutObjectCommand({ Bucket: bucketName, Key: `last_published_${TARGET_ACCOUNT}.txt`, Body: pubNow, ContentType: 'text/plain' })).catch(e => {});
+    }
+
     console.log(`✅ [${TARGET_ACCOUNT}] Item ${item.id} published successfully!\n`);
     return true;
   } catch (err) {
@@ -679,16 +686,21 @@ async function mainLoop() {
       const accountConfig = configs && configs.length > 0 ? configs[0] : null;
 
       // Ensure 40-45 minute cadence between posts even across daemon restarts
-      const { data: lastPub } = await supabase
-        .from('reels_queue')
-        .select('updated_at')
-        .eq('account_id', TARGET_ACCOUNT)
-        .eq('status', 'PUBLISHED')
-        .order('updated_at', { ascending: false })
-        .limit(1);
+      let lastPubMs = 0;
+      const tsFile = `/tmp/last_published_${TARGET_ACCOUNT}.txt`;
+      if (fs.existsSync(tsFile)) {
+        try { lastPubMs = parseInt(fs.readFileSync(tsFile, 'utf8').trim(), 10) || 0; } catch (e) {}
+      }
+      if (!lastPubMs && S3) {
+        try {
+          const res = await S3.send(new GetObjectCommand({ Bucket: bucketName, Key: `last_published_${TARGET_ACCOUNT}.txt` }));
+          const txt = await res.Body.transformToString();
+          lastPubMs = parseInt(txt.trim(), 10) || 0;
+        } catch (e) {}
+      }
 
-      if (lastPub && lastPub.length > 0 && lastPub[0].updated_at) {
-        const elapsedMs = Date.now() - new Date(lastPub[0].updated_at).getTime();
+      if (lastPubMs > 0) {
+        const elapsedMs = Date.now() - lastPubMs;
         const minCadenceMs = 40 * 60 * 1000;
         if (elapsedMs < minCadenceMs) {
           const waitMs = minCadenceMs - elapsedMs;
