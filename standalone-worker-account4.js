@@ -138,9 +138,9 @@ function generateAntiCopyrightParams(config) {
   const trimStart = randFloat(0.1, 0.25);
   const trimEnd = randFloat(0.1, 0.25);
 
-  // Layer 4: Highest Quality Encoding Settings (Studio-grade 1080p mobile clarity)
+  // Layer 4: Highest Quality Encoding Settings (Studio-grade 1080p mobile clarity, optimized for Oracle VM)
   const frameRate = 30;
-  const preset = 'fast';
+  const preset = 'veryfast';
   const profile = 'high';
   const level = '4.2';
   const gopSize = randInt(30, 60);
@@ -297,13 +297,17 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
     if (!isNaN(d) && d > 2) duration = d;
   } catch (e) {}
 
-  const trimEndTime = Math.max(1, duration - params.trimEnd).toFixed(3);
+  // Instagram Reels max duration is 90s. Cap maximum end time at 60s if source is longer to prevent excessive rendering & Meta rejection
+  const maxReelDuration = 60.0;
+  const rawEndTime = duration - params.trimEnd;
+  const clampedEndTime = Math.min(rawEndTime, maxReelDuration);
+  const trimEndTime = Math.max(1, clampedEndTime).toFixed(3);
   const effectiveDuration = parseFloat(trimEndTime) - params.trimStart;
 
-  // Build Video Filter: High-definition Lanczos upscaling with subtle unsharp edge clarity
+  // Build Video Filter: High-definition bicubic upscaling with subtle unsharp edge clarity
   const vf = [
     `crop=iw*(1-${params.cropX}/100):ih*(1-${params.cropY}/100)`,
-    `scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos`,
+    `scale=1080:1920:force_original_aspect_ratio=increase:flags=bicubic`,
     `crop=1080:1920`,
     `setsar=1`,
     `unsharp=3:3:0.5:3:3:0.0`
@@ -358,7 +362,7 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
     '-color_primaries', 'bt709',
     '-color_trc', 'bt709',
     '-colorspace', 'bt709',
-    '-threads', '2',
+    '-threads', '1',
     '-b:v', params.videoBitrate,
     '-maxrate', params.maxRate,
     '-bufsize', '12M',
@@ -370,7 +374,7 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
     outputPath
   ];
 
-  await execa(ffmpegBinary, ffmpegArgs);
+  await execa(ffmpegBinary, ffmpegArgs, { timeout: 600000 });
   console.log(`✅ 10-Layer transformation finished successfully!`);
 
   // Update file modification time
