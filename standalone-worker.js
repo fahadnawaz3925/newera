@@ -1327,19 +1327,17 @@ async function startDaemon() {
   console.log(`⏱️ Cross-Account Staggering: Min ${GLOBAL_MIN_STAGGER_MINS} minutes between ANY account posts`);
   console.log(`======================================================\n`);
 
-  const supportedAccounts = ['account1', 'account2', 'account3'];
+  // Active posting accounts (Account 2 @buffedboujee paused per user request)
+  const supportedAccounts = ['account1', 'account3'];
   let accountOffset = 0;
 
   // Track last log time per account to avoid spamming "waiting" logs
   const lastWaitLog = {};
 
   while (true) {
-    const currentAccounts = [
-      supportedAccounts[accountOffset % supportedAccounts.length],
-      supportedAccounts[(accountOffset + 1) % supportedAccounts.length],
-      supportedAccounts[(accountOffset + 2) % supportedAccounts.length],
-    ];
+    const currentAccounts = supportedAccounts.map((_, i) => supportedAccounts[(accountOffset + i) % supportedAccounts.length]);
     for (const targetAccount of currentAccounts) {
+      if (targetAccount === 'account2') continue; // Fail-safe guard: Account 2 posting is paused
       try {
         const now = Date.now();
 
