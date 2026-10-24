@@ -595,9 +595,9 @@ Start directly with the hook line.`;
     const descLine = `Watch master artisans handcraft luxury Goodyear welted leather shoes from raw hide to finished masterpiece.`;
     return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @thehouseofcobblers for the art of handmade shoemaking 👞✨\n\n#TheHouseOfCobblers #GoodyearWelted #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #OddlySatisfying`, targetAccount);
   } else {
-    const titleLine = isMeaningfulTitle ? `👞 ${videoTitleClean}` : `The mastery of handmade leather shoes 👞✨`;
-    const descLine = `Watch master artisans handcraft luxury bespoke leather shoes with exquisite precision. Pure artisanal elegance in every detail.`;
-    return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @pelleelegantee for the finest in handmade luxury shoes 👞✨\n\n#PelleElegante #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #OddlySatisfying`, targetAccount);
+    const titleLine = isMeaningfulTitle ? `👞 ${videoTitleClean}` : `Colour built in layers. Leather chosen with intention.`;
+    const descLine = `Every pair handmade and made-to-measure from scratch. European full-grain leather, hand-painted patina, and an unreasonable obsession with details.`;
+    return cleanAndSanitizeCaption(`${titleLine}\n\n${descLine}\n\nFollow @pelleelegantee for bespoke footwear craftsmanship 👞✨\n\n#PelleElegante #HandmadeShoes #BespokeShoes #Shoemaking #Cordwainer #Cobbler #LeatherCraft #Patina #ShoeArtisan #Menswear #BespokeFootwear #Craftsmanship #MadeToMeasure`, targetAccount);
   }
 }
 

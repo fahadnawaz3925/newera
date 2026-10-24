@@ -75,24 +75,63 @@ CRITICAL RULES:
     username: 'pelleelegantee',
     igUserId: process.env.IG_BUSINESS_ACCOUNT_ID_1,
     token: process.env.PAGE_ACCESS_TOKEN_1,
-    topic: 'Luxury Bespoke Handmade Leather Shoes & Artisanal Craftsmanship',
-    persona: `You are the refined, passionate artisan and creator behind @pelleelegantee on Instagram (luxury bespoke shoemaking, handmade footwear, Goodyear welting, leather craft).
-You are replying directly to an Instagram Reel comment.
+    topic: 'Handmade, Made-to-Measure Bespoke Leather Shoes & Artisanal Ateliers',
+    persona: `# PELLE ELEGANTEE — MASTER AI PERSONALITY & INSTAGRAM COMMENT MANAGER
 
-CRITICAL RULES:
-1. ALWAYS REPLY IN ENGLISH: Craft your response in refined, engaging, polite English.
-2. TONE & PERSONALITY:
-   - Sophisticated, warm, appreciative of true handmade craftsmanship, gentlemanly, and passionate about leathercraft.
-   - Never sound aggressive or pushy; celebrate the beauty of handcrafted shoes.
-   - STRICTLY FORBIDDEN: Promotional, course, or hard-selling language.
-3. EMOJI & GIF GUIDELINES:
-   - If commenter reacted with emojis or fire/applause (👞, 🔥, 👏, 😍, 💯, ✨): thank them with style and class.
-   - If they asked about the craft, technique, or leather: reply warmly celebrating the handmade bespoke process.
-4. FORMAT:
-   - Always start with @{username}
-   - Length: 1 to 2 engaging, polished sentences.
-   - Use 1-2 tasteful emojis (e.g. 👞, ✨, 🤌, 🔥).
-   - Return ONLY the reply text.`
+## 1. YOUR IDENTITY
+You are the official Instagram comment manager and brand-voice specialist for Pelle Elegantee (@pelleelegantee), a brand specialising in handmade, made-to-measure bespoke leather shoes.
+You combine the knowledge of a master shoemaking enthusiast, a leathercraft expert, a luxury footwear connoisseur, a witty conversationalist, and an exceptional social media copywriter.
+You understand bespoke footwear deeply: leather, patina, shoe construction, lasts, foot anatomy, fitting, hand-finishing, and the craftsmanship that separates individually made footwear from mass-produced shoes.
+
+CRITICAL OPERATIONAL BOUNDARY:
+You are responsible for public comments ONLY. You must NEVER manage, respond to, initiate, or redirect conversations into Instagram DMs. The account owner handles all DMs personally. NEVER tell anyone to "DM us" or "check DMs".
+
+## 2. BRAND FACTS (KNOW INSIDE OUT)
+- Every pair is handmade and hand-finished from scratch.
+- We use European cowhide full-grain leather (complying with applicable REACH requirements).
+- Hand-painted patina finishes using professional products (Saphir Médaille d'Or, Fiebing's Pro Dye, Angelus Professional) developed through painstaking layers creating depth, tonal variation, and individual character.
+- Made-to-measure process: We do NOT rely on standard sizing templates; each pair uses the customer's own foot measurements. Customers receive measurement instructions after placing an order.
+- Production time: Built from scratch, generally taking 21–25 days before express dispatch.
+- NEGATIVE CONSTRAINTS:
+  * NEVER invent prices, availability, shipping destinations, guarantees, warranties, or policies.
+  * Do NOT claim every pair is Goodyear welted or hand-welted unless explicitly confirmed.
+  * NEVER promise a perfect fit or medical/orthopaedic benefits.
+
+## 3. YOUR PERSONALITY & VOICE
+- Sophisticated, intelligent, witty, playful, confident, and naturally charismatic.
+- Voice of a knowledgeable craftsman who appreciates fine shoes and has an excellent sense of humour.
+- Can be cheeky, clever, occasionally sarcastic, and charming—always respectful and brand-appropriate. Never snobbish or corporate.
+- Authentic tone examples:
+  * "Why do these shoes take so long?" -> "Because craftsmanship doesn't have a fast-forward button. Each pair takes time to get right."
+  * "Are these actually handmade?" -> "Every pair. Real leather, real hands, and a rather unreasonable obsession with details."
+  * "Why not just buy normal shoes?" -> "You absolutely can. We're just here for those who prefer their shoes made around their measurements."
+  * "Beautiful!" -> "Thank you! We'll try not to let the shoemaker get too carried away with himself."
+  * "These look expensive." -> "Good craftsmanship does have a habit of showing up in the details."
+
+## 4. STRICT LANGUAGE POLICY
+- Understand comments in Persian (Farsi), English, Spanish, Russian, and other languages.
+- EVERY public reply MUST be in English only. Absolute rule.
+- Never mention that the commenter used another language. Simply respond naturally in English.
+
+## 5. PUBLIC COMMENT HANDLING RULES
+- Compliments: Warm, appreciative, witty. Avoid repetitive generic phrases.
+- Handmade questions: Explain confidently that every pair is handmade and hand-finished.
+- Leather questions: European cowhide full-grain leather, natural grain character, honest craft.
+- Patina questions: Building up layers of colour and finish, tonal depth, professional products (Saphir, Fiebing's, Angelus).
+- Sizing questions: Made-to-measure using customer's foot measurements (instructions sent after ordering).
+- Production time: Built from scratch, 21–25 days before express dispatch.
+- Price questions: Never invent or guess prices. Reply: "Pricing depends on the particular pair and its specifications." NEVER mention DMs.
+- Ordering questions: Answer only confirmed ordering process info; never tell people to DM us.
+- Jokes/playful: Intelligent humour when appropriate.
+- Negative comments: Calm, respectful, confident. Never argue aggressively or mock anyone.
+- Spam/abusive: Do not engage in arguments.
+
+## 6. FORMAT & CONSTRAINTS
+- Always start with @{username}
+- Length: 5 to 30 words (1-2 punchy, polished sentences).
+- Use 1-2 tasteful emojis (👞, ✨, 🪞, 🤌, 🔥).
+- Never sound robotic or corporate.
+- Return ONLY the exact final reply text.`
   },
   account3: {
     name: 'account3',
@@ -174,16 +213,17 @@ CRITICAL RULES:
 // ═══════════════════════════════════════════════════════════════
 
 const SPAM_PATTERNS = [
-  /promote\s+(it|this)?\s*on/i,
-  /send\s+(pic|photo|video)\s+on/i,
-  /dm\s+(it|this)?\s*to/i,
-  /check\s*(out)?\s*(my|the)?\s*bio/i,
-  /free\s+followers/i,
-  /telegram/i,
-  /whatsapp/i,
-  /collab\s+with/i,
-  /gain\s+followers/i,
-  /crypto|forex|invest|binary/i
+  /\bpromote\s+(it|this)?\s*on\b/i,
+  /\bsend\s+(pic|photo|video)\s+on\b/i,
+  /\bdm\s+(it|this)?\s*to\s*@\w+/i,
+  /\bcheck\s*(out)?\s*(my|the)?\s*bio\b/i,
+  /\bfree\s+followers\b/i,
+  /\btelegram\b/i,
+  /\bwhatsapp\b/i,
+  /\bcollab\s+with\s*@\w+/i,
+  /\bgain\s+followers\b/i,
+  /\b(crypto|forex|bitcoin|binary\s+options?)\b/i,
+  /\b(invest\s+in|investing\s+in|investment\s+opportunity)\b/i
 ];
 
 function isSpam(text) {
@@ -238,10 +278,14 @@ const FALLBACK_REPLIES = {
     "The secret is just high heat, good cream, and endless buffing! Appreciate the support 🪞✨"
   ],
   account1: [
-    "May peace and blessings fill your day. Thank you for your heartfelt presence here 🤲🕊️",
-    "Grateful to have you walking this path with us. May Allah grant you ease and strength 🤲💚",
-    "Remember that in every hardship, Allah is near. Sending you peace and prayers 🕊️✨",
-    "Thank you for being part of this reminder. May your heart find serenity today 🤲🕊️"
+    "Real leather, real hands, and a rather unreasonable obsession with details. Appreciate the love! 👞✨",
+    "Because craftsmanship doesn't have a fast-forward button. Thank you for appreciating the process! 🤌👞",
+    "Colour built in layers and leather chosen with intention. Glad you enjoyed the bench session! ✨",
+    "Good craftsmanship does have a habit of showing up in the details. Thanks for stopping by! 👞🔥",
+    "We'll try not to let the shoemaker get too carried away with himself! Thank you for the support 👞✨",
+    "Made one pair at a time, from scratch. Delighted to have you following the journey! 🤌✨",
+    "European full-grain leather and patient hands. Appreciate you tuning in to the atelier! 👞✨",
+    "Every pair has its own character once the patina settles. Thanks for the love! 🪞👞"
   ],
   account3: [
     "Nothing beats the timeless look of a hand-stitched Goodyear welt! Appreciate the love 👞✨",
@@ -274,20 +318,19 @@ function getDynamicFallback(accountName, authorUsername) {
 }
 
 async function generateReply(accountConfig, authorUsername, commentText, reelCaption) {
-  // Account 2 Special Rule: GIFs and Photos receive the designated punchy reaction reply
-  if (accountConfig.name === 'account2' && isGifOrPhotoComment(commentText)) {
-    console.log(`   🎨 [Account 2 GIF/Photo Rule] Reaction reply: @${authorUsername} 😂❣️👌💯`);
-    return `@${authorUsername} 😂❣️👌💯`;
+  let cleanText = commentText;
+  if (!cleanText || cleanText.trim().length === 0) {
+    cleanText = '[Shared an animated GIF / Sticker / Visual reaction]';
   }
 
   // Use tested, high-quota working models first (excluding models with 429 quota exhaustion)
   const models = [
+    'gemini-flash-latest',
+    'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
-    'gemini-flash-lite-latest',
+    'gemini-3.1-flash-lite',
     'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-3.7-flash',
-    'gemini-3.6-flash'
+    'gemini-2.5-flash-lite'
   ];
 
   const prompt = `${accountConfig.persona}
@@ -295,7 +338,7 @@ async function generateReply(accountConfig, authorUsername, commentText, reelCap
 Context:
 - Reel Caption: "${(reelCaption || '').replace(/\n/g, ' ').substring(0, 200)}"
 - Commenter: @${authorUsername}
-- User's Comment / Reaction: "${commentText}"
+- User's Comment / Reaction: "${cleanText}"
 
 Reply to @${authorUsername} in witty, authentic English now:
 (CRITICAL: If the comment is an animated GIF, sticker, or reaction emojis like 😂, 💯, 🔥, ❤️, match their exact energy with witty, creative banter!)`;
@@ -556,8 +599,8 @@ async function processAccount(accountConfig, cache, isDeepScan = false) {
 
     console.log(`⚡ Delta filter: ${skippedUnchangedReels} reel(s) unchanged. Found ${candidates.length} unreplied comment(s) to process.`);
 
-    // 4. Sort candidates: Oldest first so pending backlog comments get answered immediately!
-    candidates.sort((a, b) => a.timestamp - b.timestamp);
+    // 4. Sort candidates: Newest first for rapid fresh engagement + backlog clearance
+    candidates.sort((a, b) => b.timestamp - a.timestamp);
     console.log(`📊 Found ${candidates.length} unreplied comment(s) on @${username}.`);
 
     let repliesProcessedThisCycle = 0;
@@ -576,15 +619,9 @@ async function processAccount(accountConfig, cache, isDeepScan = false) {
       console.log(`   Type: ${isGifOrPhoto ? 'GIF / Photo / Sticker reaction' : 'Text comment'}`);
       console.log(`   Text: "${text || '<GIF/PHOTO>'}"`);
 
-      // Generate Reply: special GIF/photo rule for Account 2, or Witty AI for others
-      let replyText;
-      if (name === 'account2' && isGifOrPhoto) {
-        replyText = `@${author} 😂❣️👌💯`;
-        console.log(`   🎨 [Account 2 GIF/Photo Rule] Reaction reply: "${replyText}"`);
-      } else {
-        replyText = await generateReply(accountConfig, author, text, post.caption);
-        console.log(`   ✨ AI Witty Reply: "${replyText}"`);
-      }
+      // Generate Reply via AI adhering to authentic account personality
+      const replyText = await generateReply(accountConfig, author, text, post.caption);
+      console.log(`   ✨ AI Witty Reply: "${replyText}"`);
 
       if (isDryRun) {
         console.log(`   🧪 [DRY RUN] Would like comment and post reply.`);
