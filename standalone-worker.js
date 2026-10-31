@@ -267,7 +267,8 @@ const COLOR_PRESETS = {
 // Generate all randomized transform parameters for a single video
 function generateAntiCopyrightParams(targetAccount, config) {
   let isFlip = false;
-  if (targetAccount === 'account2') isFlip = true;
+  // Strictly no mirroring for bespoke shoes
+  // if (targetAccount === 'account2') isFlip = true;
   const doMirror = isFlip;
 
   // Zoom to hide edge watermarks & vary frame (subtle 1-3% to preserve maximum sharpness)
@@ -506,13 +507,14 @@ async function generateCaption(videoUrl, rawPath, targetAccount, coverPath = nul
   } else {
     // Account-specific default prompts if DB config is unavailable
     if (targetAccount === 'account2') {
-      prompt = `You are an elite viral social media writer for @buffedboujee — an ASMR Shoe Shine & Leather Craftsmanship page.
-Write ONE captivating, scroll-stopping Instagram Reel caption celebrating the sensory ASMR shoe shine experience.
+      prompt = `You are an expert viral content creator, luxury footwear specialist, and brand-voice copywriter for Timberlee IIII (@timberleeiiii) — celebrating the master craft of handmade, made-to-measure bespoke Goodyear welted leather shoes.
+Write ONE captivating, scroll-stopping Instagram Reel caption celebrating the precision and heritage of made-to-measure Goodyear welted shoemaking.
 CORE RULES:
-- Highlight the sensory satisfaction: crisp horsehair brush sounds, rich leather lather, hypnotic buffing, and mirror shine reflection.
+- Celebrate the craftsmanship: precision, patience, and traditional bench techniques of handmade Goodyear welted shoemaking.
+- Emphasize made-to-measure and bespoke craftsmanship.
 - NEVER mention video numbers, ranks, or view counts.
-- CTA: "Rate this shine from 1 to 10! 👇\nFollow @buffedboujee for more satisfying content 👞✨"
-- 8-10 trending hashtags (#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds).
+- CTA: "Which detail of Goodyear welted shoemaking do you admire most? Drop a comment below! 👇\nFollow Timberlee IIII (@timberleeiiii) for the art of handmade made-to-measure shoes 👞✨"
+- 8-10 trending hashtags (#Timberlee #TimberleeIII #GoodyearWelted #HandmadeShoes #BespokeShoes #MadeToMeasure #Shoemaking #LeatherCraft #LuxuryShoes).
 Start directly with the hook line.`;
     } else if (targetAccount === 'account3') {
       prompt = `Write a captivating Instagram reel caption for @thehouseofcobblers celebrating handmade Goodyear welted leather shoe craftsmanship. Use emojis and hashtags. Start directly with the hook line.`;
@@ -587,9 +589,9 @@ Start directly with the hook line.`;
   const isMeaningfulTitle = videoTitleClean && videoTitleClean.length > 4 && !/^\d+$/.test(videoTitleClean);
 
   if (targetAccount === 'account2') {
-    const titleHook = `Turn your sound UP for this transformation 🎧🔥`;
-    const descLine = `Watch this deeply satisfying transformation — worn leather brought back to life with a flawless mirror shine. The crisp ASMR sounds are pure therapy 🤌✨`;
-    return cleanAndSanitizeCaption(`${titleHook}\n\n${descLine}\n\nRate this shine from 1 to 10! 👇\nFollow @buffedboujee for more satisfying content 👞✨\n\n#ASMR #ShoeShine #Satisfying #OddlySatisfying #LeatherCare #ShoeRestoration #ASMRSounds #ShoeCleaning #Menswear #DapperStyle #RelaxingSounds`, targetAccount);
+    const titleHook = isMeaningfulTitle ? `👞 ${videoTitleClean}` : `Handmade Goodyear Welted Shoemaking — Timberlee IIII 👞✨`;
+    const descLine = `Every stitch pulled with intention. Watch master artisans handcraft luxury made-to-measure Goodyear welted shoes from raw European hide to finished bespoke elegance 🤌🔥`;
+    return cleanAndSanitizeCaption(`${titleHook}\n\n${descLine}\n\nWhich detail of Goodyear welted shoemaking do you admire most? Drop a comment below! 👇\nFollow Timberlee IIII (@timberleeiiii) for the art of handmade made-to-measure shoes 👞✨\n\n#Timberlee #TimberleeIII #GoodyearWelted #HandmadeShoes #BespokeShoes #MadeToMeasure #MakeToOrder #Shoemaking #LeatherCraft #LuxuryShoes`, targetAccount);
   } else if (targetAccount === 'account3') {
     const titleLine = isMeaningfulTitle ? `👞 ${videoTitleClean}` : `The mastery of Goodyear welted shoemaking 👞✨`;
     const descLine = `Watch master artisans handcraft luxury Goodyear welted leather shoes from raw hide to finished masterpiece.`;
@@ -1337,7 +1339,7 @@ async function startDaemon() {
   while (true) {
     const currentAccounts = supportedAccounts.map((_, i) => supportedAccounts[(accountOffset + i) % supportedAccounts.length]);
     for (const targetAccount of currentAccounts) {
-      if (targetAccount === 'account2') continue; // Fail-safe guard: Account 2 posting is paused
+      // account2 (Timberlee IIII) is active; if queue has 0 items, loop gracefully continues
       try {
         const now = Date.now();
 
