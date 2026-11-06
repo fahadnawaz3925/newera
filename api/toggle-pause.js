@@ -1,3 +1,4 @@
+const { createClient } = require('@supabase/supabase-js');
 const { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 const accountIdR2 = process.env.R2_ACCOUNT_ID;
@@ -15,6 +16,11 @@ if (accountIdR2 && accessKeyId && secretAccessKey) {
   });
 }
 
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+}
+
 const handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -26,8 +32,15 @@ const handler = async (event, context) => {
     return { statusCode: 200, headers, body: '' };
   }
 
-  const accountId = (event.queryStringParameters && event.queryStringParameters.accountId) || 
-                    (event.body ? JSON.parse(event.body).accountId : 'account1') || 'account1';
+  let accountId = 'account1';
+  if (event.queryStringParameters && event.queryStringParameters.accountId) {
+    accountId = event.queryStringParameters.accountId;
+  } else if (event.body) {
+    try {
+      const parsed = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+      if (parsed && parsed.accountId) accountId = parsed.accountId;
+    } catch (e) {}
+  }
 
   try {
     if (event.httpMethod === 'GET') {
@@ -38,7 +51,16 @@ const handler = async (event, context) => {
           const str = (await res.Body.transformToString()).trim();
           isPaused = str === 'true' || str === '1';
         } catch (e) {}
+      } else if (supabase) {
+        try {
+          const { data, error } = await supabase.storage.from(bucketName).download(`paused_${accountId}.txt`);
+          if (!error && data) {
+            const str = (await data.text()).trim();
+            isPaused = str === 'true' || str === '1';
+          }
+        } catch (e) {}
       }
+
       return {
         statusCode: 200,
         headers,
@@ -47,7 +69,13 @@ const handler = async (event, context) => {
     }
 
     if (event.httpMethod === 'POST') {
-      const body = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || {});
+      let body = {};
+      try {
+        body = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || {});
+      } catch (e) {
+        body = {};
+      }
+
       const action = body.action || (body.pause ? 'pause' : 'resume');
       const shouldPause = action === 'pause';
 
@@ -67,6 +95,16 @@ const handler = async (event, context) => {
             }));
           } catch (delErr) {}
         }
+      }
+
+      if (supabase) {
+        try {
+          if (shouldPause) {
+            await supabase.storage.from(bucketName).upload(`paused_${accountId}.txt`, 'true', { upsert: true });
+          } else {
+            await supabase.storage.from(bucketName).remove([`paused_${accountId}.txt`]);
+          }
+        } catch (sbErr) {}
       }
 
       return {

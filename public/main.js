@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedActivityIds.clear();
       selectedPendingIds.clear();
       updateSelectedUI();
+      const statusText = document.getElementById('account-status-text');
+      if (statusText) statusText.textContent = 'Checking status...';
       fetchQueue();
     });
   }
@@ -453,20 +455,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentAccountPaused) {
       dot.style.background = '#f59e0b';
+      dot.style.boxShadow = '0 0 10px #f59e0b';
       text.style.color = '#fbbf24';
-      text.textContent = '⏸️ Posting Paused';
-      btn.style.background = 'rgba(16, 185, 129, 0.2)';
-      btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+      text.textContent = '⏸️ Paused (Posting Suspended)';
+      btn.style.background = 'rgba(16, 185, 129, 0.25)';
+      btn.style.borderColor = 'rgba(16, 185, 129, 0.7)';
       btn.style.color = '#34d399';
-      btnText.textContent = '▶️ Resume Posting';
+      btnText.textContent = '▶️ Resume This Account';
     } else {
       dot.style.background = '#10b981';
+      dot.style.boxShadow = '0 0 10px #10b981';
       text.style.color = '#34d399';
-      text.textContent = '🟢 Posting Active';
+      text.textContent = '🟢 Active (Auto-Posting 24/7)';
       btn.style.background = 'rgba(245, 158, 11, 0.2)';
-      btn.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+      btn.style.borderColor = 'rgba(245, 158, 11, 0.6)';
       btn.style.color = '#fbbf24';
-      btnText.textContent = '⏸️ Pause Posting';
+      btnText.textContent = '⏸️ Pause This Account';
     }
   }
 
@@ -477,6 +481,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const accountId = accountSelect ? accountSelect.value : 'account1';
       const action = currentAccountPaused ? 'resume' : 'pause';
       togglePauseBtn.disabled = true;
+      const btnText = document.getElementById('toggle-pause-text');
+      if (btnText) btnText.textContent = action === 'pause' ? 'Pausing...' : 'Resuming...';
 
       try {
         const res = await fetch('/api/toggle-pause', {
