@@ -790,6 +790,21 @@ async function processSingleItem(item, targetAccount) {
       const arrayBuffer = await getRawRes.Body.transformToByteArray();
       fs.writeFileSync(destPath, Buffer.from(arrayBuffer));
 
+    } else if (item.url && (item.url.includes('80.225.246.34') || item.url.includes('TIMBERLEE'))) {
+      const urlFileName = decodeURIComponent(item.url.split('/').pop().split('?')[0]);
+      console.log(`🚀 Fast direct SCP transfer from Server 3 for ${urlFileName}...`);
+      const ext = path.extname(urlFileName) || '.mp4';
+      downloadedFile = `${fileId}_raw${ext}`;
+      const destPath = path.join(tempDir, downloadedFile);
+      const remotePath = `/home/ubuntu/TIMBERLEE_III/${urlFileName}`;
+      await execa('scp', [
+        '-i', '/home/ubuntu/.ssh/server3_key.pem',
+        '-o', 'StrictHostKeyChecking=no',
+        `ubuntu@80.225.246.34:${remotePath}`,
+        destPath
+      ]);
+      console.log(`   ✅ Direct SCP transfer completed successfully (${(fs.statSync(destPath).size / 1024 / 1024).toFixed(2)} MB).`);
+
     } else {
       console.log(`Downloading video ${item.url} via yt-dlp (best quality)...`);
       let downloadSuccess = false;
