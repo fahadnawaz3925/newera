@@ -15,7 +15,7 @@ if (accountIdR2 && accessKeyId && secretAccessKey) {
   });
 }
 
-exports.handler = async (event, context) => {
+const handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -26,7 +26,8 @@ exports.handler = async (event, context) => {
     return { statusCode: 200, headers, body: '' };
   }
 
-  const accountId = event.queryStringParameters?.accountId || (event.body ? JSON.parse(event.body).accountId : 'account1') || 'account1';
+  const accountId = (event.queryStringParameters && event.queryStringParameters.accountId) || 
+                    (event.body ? JSON.parse(event.body).accountId : 'account1') || 'account1';
 
   try {
     if (event.httpMethod === 'GET') {
@@ -48,44 +49,86 @@ exports.handler = async (event, context) => {
     if (event.httpMethod === 'POST') {
       const body = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || {});
       const action = body.action || (body.pause ? 'pause' : 'resume');
-      const targetAcc = body.accountId || accountId;
+      const shouldPause = action === 'pause';
 
-      if (!S3) {
-        return { statusCode: 500, headers, body: JSON.stringify({ error: 'R2 storage not configured' }) };
+      if (S3) {
+        if (shouldPause) {
+          await S3.send(new PutObjectCommand({
+            Bucket: bucketName,
+            Key: `paused_${accountId}.txt`,
+            Body: 'true',
+            ContentType: 'text/plain'
+          }));
+        } else {
+          try {
+            await S3.send(new DeleteObjectCommand({
+              Bucket: bucketName,
+              Key: `paused_${accountId}.txt`
+            }));
+          } catch (delErr) {}
+        }
       }
 
-      if (action === 'pause') {
-        await S3.send(new PutObjectCommand({
-          Bucket: bucketName,
-          Key: `paused_${targetAcc}.txt`,
-          Body: 'true',
-          ContentType: 'text/plain'
-        }));
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ accountId: targetAcc, isPaused: true, message: `Account ${targetAcc} paused successfully` })
-        };
-      } else {
-        await S3.send(new DeleteObjectCommand({
-          Bucket: bucketName,
-          Key: `paused_${targetAcc}.txt`
-        })).catch(() => {});
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ accountId: targetAcc, isPaused: false, message: `Account ${targetAcc} resumed successfully` })
-        };
-      }
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          accountId,
+          isPaused: shouldPause,
+          message: `Posting for ${accountId} is now ${shouldPause ? 'PAUSED' : 'ACTIVE'}`
+        })
+      };
     }
 
-    return { statusCode: 405, headers, body: 'Method Not Allowed' };
-  } catch (error) {
-    console.error('Error in toggle-pause:', error);
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method Not Allowed' })
+    };
+  } catch (err) {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message || 'Internal Server Error' })
+      body: JSON.stringify({ error: err.message })
     };
   }
 };
+
+const vercelAdapter = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  const event = {
+    httpMethod: req.method,
+    queryStringParameters: req.query || {},
+    body: typeof req.body === 'object' ? JSON.stringify(req.body) : req.body
+  };
+
+  try {
+    const result = await handler(event, {});
+    if (result.headers) {
+      for (const [k, v] of Object.entries(result.headers)) {
+        res.setHeader(k, v);
+      }
+    }
+    res.status(result.statusCode || 200);
+    try {
+      return res.json(JSON.parse(result.body));
+    } catch (e) {
+      return res.send(result.body);
+    }
+  } catch (err) {
+    console.error('API Error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+vercelAdapter.handler = handler;
+module.exports = vercelAdapter;
+exports.handler = handler;
