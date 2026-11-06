@@ -1329,8 +1329,8 @@ async function startDaemon() {
   console.log(`⏱️ Cross-Account Staggering: Min ${GLOBAL_MIN_STAGGER_MINS} minutes between ANY account posts`);
   console.log(`======================================================\n`);
 
-  // Active posting accounts (Account 2 @buffedboujee paused per user request)
-  const supportedAccounts = ['account1', 'account3'];
+  // Active posting accounts
+  const supportedAccounts = ['account1', 'account2', 'account3'];
   let accountOffset = 0;
 
   // Track last log time per account to avoid spamming "waiting" logs
@@ -1339,9 +1339,30 @@ async function startDaemon() {
   while (true) {
     const currentAccounts = supportedAccounts.map((_, i) => supportedAccounts[(accountOffset + i) % supportedAccounts.length]);
     for (const targetAccount of currentAccounts) {
-      // account2 (Timberlee IIII) is active; if queue has 0 items, loop gracefully continues
       try {
         const now = Date.now();
+
+        // 0. Check if Account Posting is Paused
+        let isPaused = false;
+        if (S3) {
+          try {
+            const pauseRes = await S3.send(new GetObjectCommand({ Bucket: bucketName, Key: `paused_${targetAccount}.txt` }));
+            const txt = (await pauseRes.Body.transformToString()).trim();
+            if (txt === 'true' || txt === '1') isPaused = true;
+          } catch (e) {}
+        }
+        if (!isPaused && (fs.existsSync(`/tmp/paused_${targetAccount}.txt`) || fs.existsSync(path.join(__dirname, `paused_${targetAccount}.txt`)))) {
+          isPaused = true;
+        }
+        if (isPaused) {
+          const logKey = `PAUSE_${targetAccount}`;
+          const lastLog = lastWaitLog[logKey] || 0;
+          if (now - lastLog > 5 * 60 * 1000) {
+            console.log(`[${targetAccount}] ⏸️ Posting is PAUSED by user. Skipping.`);
+            lastWaitLog[logKey] = now;
+          }
+          continue;
+        }
 
         // 0. Check Emergency Cooldown
         try {

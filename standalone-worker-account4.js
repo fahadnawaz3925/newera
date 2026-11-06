@@ -685,6 +685,24 @@ async function mainLoop() {
       const { data: configs } = await supabase.from('reels_accounts').select('*').eq('account_id', TARGET_ACCOUNT);
       const accountConfig = configs && configs.length > 0 ? configs[0] : null;
 
+      // Check if Account Posting is Paused
+      let isPaused = false;
+      if (S3) {
+        try {
+          const pauseRes = await S3.send(new GetObjectCommand({ Bucket: bucketName, Key: `paused_${TARGET_ACCOUNT}.txt` }));
+          const txt = (await pauseRes.Body.transformToString()).trim();
+          if (txt === 'true' || txt === '1') isPaused = true;
+        } catch (e) {}
+      }
+      if (!isPaused && (fs.existsSync(`/tmp/paused_${TARGET_ACCOUNT}.txt`) || fs.existsSync(path.join(__dirname, `paused_${TARGET_ACCOUNT}.txt`)))) {
+        isPaused = true;
+      }
+      if (isPaused) {
+        console.log(`⏸️ [${TARGET_ACCOUNT}] Posting is PAUSED by user. Checking again in 1 minute...`);
+        await sleep(60000);
+        continue;
+      }
+
       // Ensure 40-45 minute cadence between posts even across daemon restarts
       let lastPubMs = 0;
       const tsFile = `/tmp/last_published_${TARGET_ACCOUNT}.txt`;

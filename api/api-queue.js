@@ -48,6 +48,7 @@ const handler = async (event, context) => {
 
       let lastPublished = 0;
       let nextScheduled = 0;
+      let isPaused = false;
       
       try {
         if (S3) {
@@ -64,6 +65,13 @@ const handler = async (event, context) => {
             const schedStr = await schedRes.Body.transformToString();
             nextScheduled = parseInt(schedStr, 10);
           } catch (e) {}
+
+          try {
+            const pauseCmd = new GetObjectCommand({ Bucket: bucketName, Key: `paused_${accountId}.txt` });
+            const pauseRes = await S3.send(pauseCmd);
+            const pauseStr = (await pauseRes.Body.transformToString()).trim();
+            isPaused = pauseStr === 'true' || pauseStr === '1';
+          } catch (e) {}
         } else {
           const BUCKET_NAME = process.env.SUPABASE_BUCKET_NAME || 'reels';
           const { data: fileData, error: fileErr } = await supabase.storage.from(BUCKET_NAME).download(`last_published_${accountId}.txt`);
@@ -74,12 +82,17 @@ const handler = async (event, context) => {
           if (!schedErr && schedData) {
             nextScheduled = parseInt(await schedData.text(), 10);
           }
+          const { data: pauseData, error: pauseErr } = await supabase.storage.from(BUCKET_NAME).download(`paused_${accountId}.txt`);
+          if (!pauseErr && pauseData) {
+            const pStr = (await pauseData.text()).trim();
+            isPaused = pStr === 'true' || pStr === '1';
+          }
         }
       } catch (e) {}
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ queue: data, lastPublished, nextScheduled })
+        body: JSON.stringify({ queue: data, lastPublished, nextScheduled, isPaused })
       };
     } 
     else if (event.httpMethod === 'POST') {

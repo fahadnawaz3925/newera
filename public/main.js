@@ -440,6 +440,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  let currentAccountPaused = false;
+
+  function updatePauseUI(isPaused) {
+    currentAccountPaused = !!isPaused;
+    const dot = document.getElementById('account-status-dot');
+    const text = document.getElementById('account-status-text');
+    const btn = document.getElementById('toggle-pause-btn');
+    const btnText = document.getElementById('toggle-pause-text');
+
+    if (!dot || !text || !btn || !btnText) return;
+
+    if (currentAccountPaused) {
+      dot.style.background = '#f59e0b';
+      text.style.color = '#fbbf24';
+      text.textContent = '⏸️ Posting Paused';
+      btn.style.background = 'rgba(16, 185, 129, 0.2)';
+      btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+      btn.style.color = '#34d399';
+      btnText.textContent = '▶️ Resume Posting';
+    } else {
+      dot.style.background = '#10b981';
+      text.style.color = '#34d399';
+      text.textContent = '🟢 Posting Active';
+      btn.style.background = 'rgba(245, 158, 11, 0.2)';
+      btn.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+      btn.style.color = '#fbbf24';
+      btnText.textContent = '⏸️ Pause Posting';
+    }
+  }
+
+  const togglePauseBtn = document.getElementById('toggle-pause-btn');
+  if (togglePauseBtn) {
+    togglePauseBtn.addEventListener('click', async () => {
+      const accountSelect = document.getElementById('account-select');
+      const accountId = accountSelect ? accountSelect.value : 'account1';
+      const action = currentAccountPaused ? 'resume' : 'pause';
+      togglePauseBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/toggle-pause', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId, action })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to toggle pause');
+        updatePauseUI(data.isPaused);
+        await fetchQueue();
+      } catch (err) {
+        alert('Error updating pause status: ' + err.message);
+      } finally {
+        togglePauseBtn.disabled = false;
+      }
+    });
+  }
+
   async function fetchQueue() {
     try {
       const accountSelect = document.getElementById('account-select');
@@ -450,7 +506,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch queue');
       
       renderQueue(data.queue);
-      startCountdownTimer(data.lastPublished, data.queue, data.nextScheduled);
+      updatePauseUI(data.isPaused);
+      startCountdownTimer(data.lastPublished, data.queue, data.nextScheduled, data.isPaused);
     } catch (err) {
       console.error('Error fetching queue:', err);
     }
@@ -458,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let countdownInterval = null;
 
-  function startCountdownTimer(lastPublished, queueItems = [], nextScheduled = 0) {
+  function startCountdownTimer(lastPublished, queueItems = [], nextScheduled = 0, isPaused = false) {
     const timerSpan = document.getElementById('next-post-timer');
     const progressBar = document.getElementById('loop-progress-bar');
     const statusDot = document.getElementById('loop-status-dot');
@@ -467,6 +524,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (countdownInterval) clearInterval(countdownInterval);
     
     timerSpan.style.display = 'block';
+
+    if (isPaused) {
+      timerSpan.textContent = 'Next post: Paused ⏸️';
+      timerSpan.style.color = '#fbbf24';
+      if (progressBar) progressBar.style.width = '0%';
+      if (statusDot) statusDot.style.background = '#f59e0b';
+      return;
+    }
     
     const activeItems = queueItems.filter(item => item.status === 'PENDING' || item.status === 'PROCESSING');
     if (activeItems.length === 0) {
