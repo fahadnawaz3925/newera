@@ -45,19 +45,32 @@ const handler = async (event, context) => {
   try {
     if (event.httpMethod === 'GET') {
       let isPaused = false;
+
+      // 1. Check R2
       if (S3) {
         try {
           const res = await S3.send(new GetObjectCommand({ Bucket: bucketName, Key: `paused_${accountId}.txt` }));
           const str = (await res.Body.transformToString()).trim();
-          isPaused = str === 'true' || str === '1';
+          if (str === 'true' || str === '1') isPaused = true;
         } catch (e) {}
-      } else if (supabase) {
+      }
+
+      // 2. Check Supabase Storage
+      if (!isPaused && supabase) {
         try {
           const { data, error } = await supabase.storage.from(bucketName).download(`paused_${accountId}.txt`);
           if (!error && data) {
             const str = (await data.text()).trim();
-            isPaused = str === 'true' || str === '1';
+            if (str === 'true' || str === '1') isPaused = true;
           }
+        } catch (e) {}
+      }
+
+      // 3. Check Supabase DB reels_accounts
+      if (!isPaused && supabase) {
+        try {
+          const { data } = await supabase.from('reels_accounts').select('intro_text').eq('account_id', accountId).single();
+          if (data && data.intro_text === 'PAUSED') isPaused = true;
         } catch (e) {}
       }
 
@@ -79,24 +92,28 @@ const handler = async (event, context) => {
       const action = body.action || (body.pause ? 'pause' : 'resume');
       const shouldPause = action === 'pause';
 
+      // 1. Sync to R2
       if (S3) {
-        if (shouldPause) {
-          await S3.send(new PutObjectCommand({
-            Bucket: bucketName,
-            Key: `paused_${accountId}.txt`,
-            Body: 'true',
-            ContentType: 'text/plain'
-          }));
-        } else {
-          try {
+        try {
+          if (shouldPause) {
+            await S3.send(new PutObjectCommand({
+              Bucket: bucketName,
+              Key: `paused_${accountId}.txt`,
+              Body: 'true',
+              ContentType: 'text/plain'
+            }));
+          } else {
             await S3.send(new DeleteObjectCommand({
               Bucket: bucketName,
               Key: `paused_${accountId}.txt`
             }));
-          } catch (delErr) {}
+          }
+        } catch (r2Err) {
+          console.error('R2 pause sync warning:', r2Err.message);
         }
       }
 
+      // 2. Sync to Supabase Storage
       if (supabase) {
         try {
           if (shouldPause) {
@@ -104,7 +121,21 @@ const handler = async (event, context) => {
           } else {
             await supabase.storage.from(bucketName).remove([`paused_${accountId}.txt`]);
           }
-        } catch (sbErr) {}
+        } catch (sbErr) {
+          console.error('Supabase storage pause sync warning:', sbErr.message);
+        }
+      }
+
+      // 3. Sync to Supabase DB reels_accounts
+      if (supabase) {
+        try {
+          await supabase
+            .from('reels_accounts')
+            .update({ intro_text: shouldPause ? 'PAUSED' : null })
+            .eq('account_id', accountId);
+        } catch (dbErr) {
+          console.error('Supabase DB pause sync warning:', dbErr.message);
+        }
       }
 
       return {

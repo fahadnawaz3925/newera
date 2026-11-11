@@ -88,6 +88,16 @@ const handler = async (event, context) => {
             isPaused = pStr === 'true' || pStr === '1';
           }
         }
+
+        // DB fallback check for pause status
+        if (!isPaused && supabase) {
+          try {
+            const { data: accData } = await supabase.from('reels_accounts').select('intro_text').eq('account_id', accountId).single();
+            if (accData && accData.intro_text === 'PAUSED') {
+              isPaused = true;
+            }
+          } catch (e) {}
+        }
       } catch (e) {}
 
       return {

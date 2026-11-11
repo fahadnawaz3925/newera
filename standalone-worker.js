@@ -271,9 +271,10 @@ function generateAntiCopyrightParams(targetAccount, config) {
   // if (targetAccount === 'account2') isFlip = true;
   const doMirror = isFlip;
 
-  // Zoom to hide edge watermarks & vary frame (subtle 1-3% to preserve maximum sharpness)
-  const cropX = randInt(1, 3);
-  const cropY = randInt(1, 3);
+  // Symmetrical zoom to hide edge watermarks & vary frame without ANY aspect ratio distortion or stretching
+  const cropPercent = randInt(1, 2);
+  const cropX = cropPercent;
+  const cropY = cropPercent;
 
   // Bright, clean lighting (positive brightness and rich contrast for account2 to eliminate any darkness)
   const brightness = targetAccount === 'account2' ? randFloat(0.015, 0.040) : randFloat(-0.01, 0.02);
@@ -940,14 +941,19 @@ async function processSingleItem(item, targetAccount) {
 
     const videoFilterChain = vfParts.join(',');
 
-    // --- Probe duration for temporal trimming (Layer 3) & Reels API compliance ---
+    // --- Probe duration & streams for temporal trimming (Layer 3) & Reels API compliance ---
     let videoDuration = null;
+    let hasAudio = true;
     try {
-      const durationProbe = await execa('ffprobe', [
-        '-v', 'error', '-show_entries', 'format=duration',
-        '-of', 'default=noprint_wrappers=1:nokey=1', inputPath
+      const probeRes = await execa('ffprobe', [
+        '-v', 'error', '-show_entries', 'format=duration:stream=codec_type',
+        '-of', 'json', inputPath
       ]);
-      videoDuration = parseFloat(durationProbe.stdout?.trim());
+      const probeData = JSON.parse(probeRes.stdout);
+      videoDuration = parseFloat(probeData.format?.duration);
+      if (probeData.streams) {
+        hasAudio = probeData.streams.some(s => s.codec_type === 'audio');
+      }
     } catch (e) { }
 
     // Full video preservation — post the complete video without duration truncation
@@ -1028,10 +1034,17 @@ async function processSingleItem(item, targetAccount) {
       '-metadata', `creation_time=${params.creationTime}`,
       // Layer 1 + 6 + 7: Video filter chain
       '-vf', videoFilterChain,
-      // Layer 2: Audio filter chain
-      '-af', audioFilterChain,
       '-map', '0:v',
-      '-map', '0:a',
+      ...(hasAudio ? [
+        // Layer 2: Audio filter chain
+        '-af', audioFilterChain,
+        '-map', '0:a',
+        '-c:a', 'aac',
+        '-b:a', params.audioBitrate,
+        '-ar', '48000'
+      ] : [
+        '-an'
+      ]),
       // Layer 4: Clean, high-speed encoding parameters (prevents thread deadlocks)
       '-r', params.frameRate,
       '-c:v', 'libx264',
@@ -1047,9 +1060,6 @@ async function processSingleItem(item, targetAccount) {
       '-maxrate', params.maxRate,
       '-bufsize', '12M',
       '-g', String(params.gopSize),
-      '-c:a', 'aac',
-      '-b:a', params.audioBitrate,
-      '-ar', '48000',
       '-movflags', '+faststart',
       outputPath
     );
@@ -1350,6 +1360,7 @@ async function startDaemon() {
 
   // Track last log time per account to avoid spamming "waiting" logs
   const lastWaitLog = {};
+  const wasPausedAccount = {};
 
   while (true) {
     const currentAccounts = supportedAccounts.map((_, i) => supportedAccounts[(accountOffset + i) % supportedAccounts.length]);
@@ -1357,7 +1368,7 @@ async function startDaemon() {
       try {
         const now = Date.now();
 
-        // 0. Check if Account Posting is Paused
+        // 0. Check if Account Posting is Paused (R2, local file, DB)
         let isPaused = false;
         if (S3) {
           try {
@@ -1369,14 +1380,28 @@ async function startDaemon() {
         if (!isPaused && (fs.existsSync(`/tmp/paused_${targetAccount}.txt`) || fs.existsSync(path.join(__dirname, `paused_${targetAccount}.txt`)))) {
           isPaused = true;
         }
+        if (!isPaused && supabase) {
+          try {
+            const { data: accData } = await supabase.from('reels_accounts').select('intro_text').eq('account_id', targetAccount).single();
+            if (accData && accData.intro_text === 'PAUSED') isPaused = true;
+          } catch (e) {}
+        }
         if (isPaused) {
-          const logKey = `PAUSE_${targetAccount}`;
-          const lastLog = lastWaitLog[logKey] || 0;
-          if (now - lastLog > 5 * 60 * 1000) {
+          if (!wasPausedAccount[targetAccount]) {
             console.log(`[${targetAccount}] ⏸️ Posting is PAUSED by user. Skipping.`);
-            lastWaitLog[logKey] = now;
+            wasPausedAccount[targetAccount] = true;
+          } else {
+            const logKey = `PAUSE_${targetAccount}`;
+            const lastLog = lastWaitLog[logKey] || 0;
+            if (now - lastLog > 5 * 60 * 1000) {
+              console.log(`[${targetAccount}] ⏸️ Posting remains PAUSED by user. Skipping.`);
+              lastWaitLog[logKey] = now;
+            }
           }
           continue;
+        } else if (wasPausedAccount[targetAccount]) {
+          console.log(`[${targetAccount}] ▶️ Posting RESUMED by user! Resuming schedule.`);
+          wasPausedAccount[targetAccount] = false;
         }
 
         // 0. Check Emergency Cooldown

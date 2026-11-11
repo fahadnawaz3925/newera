@@ -70,8 +70,20 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedActivityIds.clear();
       selectedPendingIds.clear();
       updateSelectedUI();
+      const dot = document.getElementById('account-status-dot');
       const statusText = document.getElementById('account-status-text');
-      if (statusText) statusText.textContent = 'Checking status...';
+      const toggleBtn = document.getElementById('toggle-pause-btn');
+      const toggleBtnText = document.getElementById('toggle-pause-text');
+      if (dot) {
+        dot.style.background = '#64748b';
+        dot.style.boxShadow = 'none';
+      }
+      if (statusText) {
+        statusText.style.color = '#94a3b8';
+        statusText.textContent = '⏳ Checking status...';
+      }
+      if (toggleBtn) toggleBtn.disabled = true;
+      if (toggleBtnText) toggleBtnText.textContent = 'Checking...';
       fetchQueue();
     });
   }
@@ -453,6 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!dot || !text || !btn || !btnText) return;
 
+    btn.disabled = false;
     if (currentAccountPaused) {
       dot.style.background = '#f59e0b';
       dot.style.boxShadow = '0 0 10px #f59e0b';
@@ -482,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const action = currentAccountPaused ? 'resume' : 'pause';
       togglePauseBtn.disabled = true;
       const btnText = document.getElementById('toggle-pause-text');
-      if (btnText) btnText.textContent = action === 'pause' ? 'Pausing...' : 'Resuming...';
+      if (btnText) btnText.textContent = action === 'pause' ? '⏸️ Pausing...' : '▶️ Resuming...';
 
       try {
         const res = await fetch('/api/toggle-pause', {
@@ -493,6 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to toggle pause');
         updatePauseUI(data.isPaused);
+        startCountdownTimer(null, [], 0, data.isPaused);
         await fetchQueue();
       } catch (err) {
         alert('Error updating pause status: ' + err.message);
@@ -516,6 +530,9 @@ document.addEventListener('DOMContentLoaded', () => {
       startCountdownTimer(data.lastPublished, data.queue, data.nextScheduled, data.isPaused);
     } catch (err) {
       console.error('Error fetching queue:', err);
+    } finally {
+      const toggleBtn = document.getElementById('toggle-pause-btn');
+      if (toggleBtn) toggleBtn.disabled = false;
     }
   }
 

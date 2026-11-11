@@ -673,11 +673,17 @@ async function processSingleItem(item, accountConfig) {
   }
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function mainLoop() {
   console.log(`\n================================================================`);
   console.log(`🚀 ACCOUNT 4 WORKER DAEMON STARTED (@yuzhaninigoods.co)`);
   console.log(`🔒 Dedicated Oracle Cloud VM — Complete 10-Layer Anti-Copyright Shield`);
   console.log(`================================================================\n`);
+
+  let wasPaused = false;
+  let nextScheduledMs = 0;
+  let lastWaitLogMs = 0;
 
   while (true) {
     try {
@@ -685,7 +691,7 @@ async function mainLoop() {
       const { data: configs } = await supabase.from('reels_accounts').select('*').eq('account_id', TARGET_ACCOUNT);
       const accountConfig = configs && configs.length > 0 ? configs[0] : null;
 
-      // Check if Account Posting is Paused
+      // 0. Check if Account Posting is Paused (multi-source check: R2, local file, DB)
       let isPaused = false;
       if (S3) {
         try {
@@ -697,13 +703,23 @@ async function mainLoop() {
       if (!isPaused && (fs.existsSync(`/tmp/paused_${TARGET_ACCOUNT}.txt`) || fs.existsSync(path.join(__dirname, `paused_${TARGET_ACCOUNT}.txt`)))) {
         isPaused = true;
       }
-      if (isPaused) {
-        console.log(`⏸️ [${TARGET_ACCOUNT}] Posting is PAUSED by user. Checking again in 1 minute...`);
-        await sleep(60000);
-        continue;
+      if (!isPaused && accountConfig && accountConfig.intro_text === 'PAUSED') {
+        isPaused = true;
       }
 
-      // Ensure 40-45 minute cadence between posts even across daemon restarts
+      if (isPaused) {
+        if (!wasPaused) {
+          console.log(`⏸️ [${TARGET_ACCOUNT}] Posting is PAUSED by user. Standing by...`);
+          wasPaused = true;
+        }
+        await sleep(10000); // Responsive check every 10s
+        continue;
+      } else if (wasPaused) {
+        console.log(`▶️ [${TARGET_ACCOUNT}] Posting RESUMED by user! Resuming schedule.`);
+        wasPaused = false;
+      }
+
+      // Check last published timestamp
       let lastPubMs = 0;
       const tsFile = `/tmp/last_published_${TARGET_ACCOUNT}.txt`;
       if (fs.existsSync(tsFile)) {
@@ -717,15 +733,30 @@ async function mainLoop() {
         } catch (e) {}
       }
 
-      if (lastPubMs > 0) {
-        const elapsedMs = Date.now() - lastPubMs;
-        const minCadenceMs = 40 * 60 * 1000;
-        if (elapsedMs < minCadenceMs) {
-          const waitMs = minCadenceMs - elapsedMs;
-          const waitMins = Math.ceil(waitMs / 60000);
-          console.log(`⏱️ [${TARGET_ACCOUNT}] Last Reel was published ${Math.round(elapsedMs / 60000)}m ago. Maintaining 40-45m cadence: waiting ${waitMins}m...`);
-          await new Promise(r => setTimeout(r, waitMs));
+      // Read remote next_scheduled from R2 if not yet held in memory
+      if (!nextScheduledMs && S3) {
+        try {
+          const schedRes = await S3.send(new GetObjectCommand({ Bucket: bucketName, Key: `next_scheduled_${TARGET_ACCOUNT}.txt` }));
+          const schedTxt = await schedRes.Body.transformToString();
+          nextScheduledMs = parseInt(schedTxt.trim(), 10) || 0;
+        } catch (e) {}
+      }
+
+      // If nextScheduled is missing or stale before lastPub, calculate standard 40-45m interval
+      if (lastPubMs > 0 && (!nextScheduledMs || nextScheduledMs < lastPubMs)) {
+        nextScheduledMs = lastPubMs + (randInt(40, 45) * 60 * 1000);
+      }
+
+      const now = Date.now();
+      if (nextScheduledMs > now) {
+        const waitMs = nextScheduledMs - now;
+        const waitMins = (waitMs / 60000).toFixed(1);
+        if (now - lastWaitLogMs > 5 * 60 * 1000) {
+          console.log(`⏱️ [${TARGET_ACCOUNT}] Next post in ~${waitMins} min (maintaining 40-45m cadence).`);
+          lastWaitLogMs = now;
         }
+        await sleep(15000); // 15-second non-blocking tick
+        continue;
       }
 
       // Check next PENDING item in Supabase (STRICT DESCENDING ORDER: 1100 -> 0001)
@@ -743,18 +774,25 @@ async function mainLoop() {
         const ok = await processSingleItem(item, accountConfig);
         if (ok) {
           const sleepMinutes = randInt(40, 45);
-          console.log(`⏱️ Next post scheduled in ${sleepMinutes} minutes. Sleeping...`);
-          await new Promise(r => setTimeout(r, sleepMinutes * 60 * 1000));
-          continue;
+          nextScheduledMs = Date.now() + (sleepMinutes * 60 * 1000);
+          console.log(`⏱️ Next post scheduled in ${sleepMinutes} minutes.`);
+          if (S3) {
+            await S3.send(new PutObjectCommand({
+              Bucket: bucketName,
+              Key: `next_scheduled_${TARGET_ACCOUNT}.txt`,
+              Body: nextScheduledMs.toString(),
+              ContentType: 'text/plain'
+            })).catch(e => {});
+          }
         }
       } else {
-        // No items in queue, wait 30 seconds
+        // No items in queue, wait 15 seconds
         process.stdout.write('.');
-        await new Promise(r => setTimeout(r, 30000));
+        await sleep(15000);
       }
     } catch (loopErr) {
       console.error('Loop error:', loopErr.message);
-      await new Promise(r => setTimeout(r, 30000));
+      await sleep(15000);
     }
   }
 }
