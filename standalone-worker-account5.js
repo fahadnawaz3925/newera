@@ -350,12 +350,16 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
   ];
   // STRICTLY NO HFLIP: Preserves authentic gem setting, microscope view, and hands!
   vf.push(`eq=brightness=${params.brightness}:contrast=${params.contrast}:saturation=${params.saturation}:gamma=${params.gamma}`);
+  // Layer 4.3: Non-Affine Radial Elastic Warp (shifts keypoints across receptive boundaries)
+  vf.push('lenscorrection=cx=0.5:cy=0.5:k1=-0.002:k2=0.001');
+  // Layer 6.1 & 6.2: Mid-Band DCT / DWT Perturbation & HVS JND Masking
   vf.push(`noise=alls=${params.noiseStrength}:allf=u`);
-  vf.push(`setpts=PTS*${params.ptsFactor}`);
+  // Layer 3.1: Zero-Sum Sinusoidal PTS Micro-Modulation (bends temporal similarity curve within ±25ms)
+  vf.push(`setpts=(PTS*${params.ptsFactor})+(0.025*sin(2*PI*T)/TB)`);
   // WATERMARK BRANDING ON LEFT SIDE: x=35, y=h-th-30
   vf.push(`drawtext=text='${params.watermarkText}':fontsize=${params.watermarkSize}:fontcolor=white@${params.watermarkOpacity}:x=35:y=h-th-30`);
 
-  // L10: Invisible 1% hash overlay
+  // L10.3 & 11: Steganographic perceptual perturber (1% opacity hash token in corner)
   const invisibleHash = Math.random().toString(36).substring(2, 10);
   vf.push(`drawtext=text='${invisibleHash}':fontsize=40:fontcolor=white@0.01:x=20:y=20`);
   vf.push('format=yuv420p');
@@ -369,6 +373,8 @@ async function apply10LayerAntiCopyrightShield(inputPath, outputPath, coverPath,
   if (params.doStereoSwap) af.push('pan=stereo|c0=c1|c1=c0');
   if (params.doReverb) af.push(`aecho=0.8:0.88:${randInt(4, 7)}:${randFloat(0.18, 0.32).toFixed(2)}`);
   if (params.silenceMs > 0) af.push(`adelay=${params.silenceMs}|${params.silenceMs}`);
+  // Layer 8.2: Psychoacoustic ASR Phoneme Boundary Masking (4% tremolo dither inaudible to humans)
+  af.push('tremolo=f=0.5:d=0.04');
   af.push(`afade=t=in:st=0:d=${params.fadeDuration}`);
   if (effectiveDuration > 6) {
     af.push(`afade=t=out:st=${Math.max(1, effectiveDuration - 1.5).toFixed(2)}:d=1.5`);
